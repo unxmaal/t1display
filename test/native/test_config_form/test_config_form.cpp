@@ -133,6 +133,65 @@ void test_form_result_roundtrips_through_ini(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.01f, cfg.snd_alarm, again.snd_alarm);
 }
 
+
+void test_security_keys_parse_and_roundtrip(void) {
+    configDefaults(&cfg);
+    const ConfigKV kv[] = {
+        {"ota_password", "otasecret"},
+        {"web_user", "edodd"},
+        {"web_pass", "webs3cret"},
+    };
+    applyForm(kv, 3);
+    TEST_ASSERT_EQUAL_STRING("otasecret", cfg.otaPassword);
+    TEST_ASSERT_EQUAL_STRING("edodd", cfg.webUser);
+    TEST_ASSERT_EQUAL_STRING("webs3cret", cfg.webPass);
+
+    char ini[4096];
+    int n = serializeConfigINI(&cfg, ini, sizeof(ini));
+    TEST_ASSERT_GREATER_THAN_INT(0, n);
+
+    ParsedConfig again;
+    configDefaults(&again);
+    parseConfigBuffer(ini, (size_t)n, &again);
+    TEST_ASSERT_EQUAL_INT(0, again.unknownKeys);
+    TEST_ASSERT_EQUAL_STRING("otasecret", again.otaPassword);
+    TEST_ASSERT_EQUAL_STRING("edodd", again.webUser);
+    TEST_ASSERT_EQUAL_STRING("webs3cret", again.webPass);
+}
+
+void test_security_keys_default_to_empty(void) {
+    configDefaults(&cfg);
+    TEST_ASSERT_EQUAL_STRING("", cfg.otaPassword);
+    TEST_ASSERT_EQUAL_STRING("", cfg.webUser);
+    TEST_ASSERT_EQUAL_STRING("", cfg.webPass);
+}
+
+void test_ota_disabled_without_password(void) {
+    configDefaults(&cfg);
+    TEST_ASSERT_FALSE_MESSAGE(configOtaEnabled(&cfg),
+        "OTA must not open a port when no password is configured");
+}
+
+void test_ota_enabled_with_password(void) {
+    configDefaults(&cfg);
+    const ConfigKV kv[] = {{"ota_password", "s3cret"}};
+    applyForm(kv, 1);
+    TEST_ASSERT_TRUE(configOtaEnabled(&cfg));
+}
+
+void test_web_auth_required_only_when_both_set(void) {
+    configDefaults(&cfg);
+    TEST_ASSERT_FALSE(configWebAuthEnabled(&cfg));
+
+    const ConfigKV userOnly[] = {{"web_user", "edodd"}};
+    applyForm(userOnly, 1);
+    TEST_ASSERT_FALSE(configWebAuthEnabled(&cfg));
+
+    const ConfigKV both[] = {{"web_pass", "pw"}};
+    applyForm(both, 1);
+    TEST_ASSERT_TRUE(configWebAuthEnabled(&cfg));
+}
+
 int main(int argc, char **argv) {
     (void)argc; (void)argv;
     UNITY_BEGIN();
@@ -149,5 +208,10 @@ int main(int argc, char **argv) {
     RUN_TEST(test_form_ignores_out_of_range_wlan_slot);
     RUN_TEST(test_form_ignores_unknown_key);
     RUN_TEST(test_form_result_roundtrips_through_ini);
+    RUN_TEST(test_security_keys_parse_and_roundtrip);
+    RUN_TEST(test_security_keys_default_to_empty);
+    RUN_TEST(test_ota_disabled_without_password);
+    RUN_TEST(test_ota_enabled_with_password);
+    RUN_TEST(test_web_auth_required_only_when_both_set);
     return UNITY_END();
 }

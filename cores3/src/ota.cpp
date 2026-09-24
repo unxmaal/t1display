@@ -8,8 +8,14 @@
 #include <ArduinoOTA.h>
 #include <M5Unified.h>
 
-void setupOTA(const char* hostname) {
+void setupOTA(const char* hostname, const char* password) {
+    if (!password || password[0] == '\0') {
+        Serial.println("[OTA] Disabled: no ota_password configured");
+        return;
+    }
+
     ArduinoOTA.setHostname(hostname);
+    ArduinoOTA.setPassword(password);
 
     ArduinoOTA.onStart([]() {
         Serial.println("[OTA] Update starting...");
@@ -20,7 +26,7 @@ void setupOTA(const char* hostname) {
     });
 
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("[OTA] Progress: %u%%\r", (progress * 100) / total);
+        if (total) Serial.printf("[OTA] Progress: %u%%\r", (progress * 100) / total);
     });
 
     ArduinoOTA.onError([](ota_error_t error) {

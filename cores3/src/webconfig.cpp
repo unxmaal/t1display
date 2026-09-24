@@ -94,11 +94,11 @@ static void handleRoot() {
     // Alert test buttons
     html += "<h2>Test Alerts</h2>"
             "<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px'>"
-            "<button onclick=\"fetch('/test?t=lw')\" style='background:#cc0;color:#000;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>Low Warning</button>"
-            "<button onclick=\"fetch('/test?t=la')\" style='background:#c00;color:#fff;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>Low Alarm</button>"
-            "<button onclick=\"fetch('/test?t=hw')\" style='background:#cc0;color:#000;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>High Warning</button>"
-            "<button onclick=\"fetch('/test?t=ha')\" style='background:#c00;color:#fff;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>High Alarm</button>"
-            "<button onclick=\"fetch('/test?t=nr')\" style='background:#888;color:#fff;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>No Readings</button>"
+            "<button onclick=\"fetch('/test?t=lw',{method:'POST'})\" style='background:#cc0;color:#000;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>Low Warning</button>"
+            "<button onclick=\"fetch('/test?t=la',{method:'POST'})\" style='background:#c00;color:#fff;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>Low Alarm</button>"
+            "<button onclick=\"fetch('/test?t=hw',{method:'POST'})\" style='background:#cc0;color:#000;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>High Warning</button>"
+            "<button onclick=\"fetch('/test?t=ha',{method:'POST'})\" style='background:#c00;color:#fff;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>High Alarm</button>"
+            "<button onclick=\"fetch('/test?t=nr',{method:'POST'})\" style='background:#888;color:#fff;padding:8px 12px;border:none;border-radius:4px;cursor:pointer'>No Readings</button>"
             "</div>";
 
     // Nightscout
@@ -254,12 +254,21 @@ static void handleTest() {
 
 /* ── Public API ────────────────────────────────────────────────── */
 
+static bool requireAuth() {
+    if (!configWebAuthEnabled(cfgPtr))
+        return true;
+    if (server.authenticate(cfgPtr->webUser, cfgPtr->webPass))
+        return true;
+    server.requestAuthentication();
+    return false;
+}
+
 void setupWebConfig(Config *cfg) {
     cfgPtr = cfg;
-    server.on("/", HTTP_GET, handleRoot);
-    server.on("/save", HTTP_POST, handleSave);
-    server.on("/reboot", HTTP_POST, handleReboot);
-    server.on("/test", HTTP_GET, handleTest);
+    server.on("/", HTTP_GET, []() { if (requireAuth()) handleRoot(); });
+    server.on("/save", HTTP_POST, []() { if (requireAuth()) handleSave(); });
+    server.on("/reboot", HTTP_POST, []() { if (requireAuth()) handleReboot(); });
+    server.on("/test", HTTP_POST, []() { if (requireAuth()) handleTest(); });
     server.begin();
     Serial.printf("[WEBCONFIG] Server started on port 80\n");
 }
