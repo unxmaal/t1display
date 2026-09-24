@@ -8,26 +8,13 @@
 #define CORES3_ALERTS_H
 
 #include "config.h"
+#include "ns_alarm_state.h"
 
-/**
- * Alarm state tracker. Handles timing for repeat alarms and snooze.
- */
 struct AlarmState {
-    time_t lastAlarmTime = 0;
-    time_t snoozeUntil   = 0;
-    int    snoozeMult    = 0;
+    AlarmSchedule sched;
 
-    /** Snooze alarms for cfg.snooze_timeout minutes (stacks on repeat press). */
-    void snooze(int timeout_min);
-
-    /** Returns seconds remaining in snooze, or 0. */
-    int snoozeRemaining() const;
-
-    /** Returns true if enough time has passed to fire alarm again. */
-    bool shouldFire(int alarm_repeat_min) const;
-
-    /** Record that an alarm just fired. */
-    void recordFired();
+    void snooze(unsigned long nowMs, int level, int timeout_min);
+    unsigned long snoozeRemaining(unsigned long nowMs) const;
 };
 
 /**
@@ -35,6 +22,9 @@ struct AlarmState {
  * Call every loop iteration after Nightscout data is updated.
  */
 void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm);
+
+/** Alarm level currently indicated by the data, without side effects. */
+int currentAlarmLevel(const Config &cfg, const NSinfo &ns);
 
 /** Individual alert melodies — for testing via web UI. */
 void playLowAlarm(int volume);

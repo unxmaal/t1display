@@ -159,7 +159,7 @@ static void pollNightscout() {
     }
     pollCount++;
 
-    drawPage(currentPage, cfg, ns, errLog);
+    drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
 }
 
 /* ── Setup ─────────────────────────────────────────────────────── */
@@ -239,7 +239,7 @@ void setup() {
 
     Serial.println("[DISPLAY] Drawing initial page...");
     Serial.flush();
-    drawPage(currentPage, cfg, ns, errLog);
+    drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
     Serial.printf("[DISPLAY] Page %d drawn (glucose=%.1f mmol, dir=%s)\n",
                   currentPage, ns.sensSgv, ns.sensDir);
     Serial.flush();
@@ -277,15 +277,15 @@ void loop() {
     // Button B (middle): snooze
     if (M5.BtnB.wasPressed()) {
         Serial.println("[BTN] B pressed");
-        alarmState.snooze(cfg.snooze_timeout);
-        drawPage(currentPage, cfg, ns, errLog);
+        alarmState.snooze(millis(), currentAlarmLevel(cfg, ns), cfg.snooze_timeout);
+        drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
     }
 
     // Button C (right): toggle page
     if (M5.BtnC.wasPressed()) {
         Serial.println("[BTN] C pressed");
         currentPage = (currentPage + 1) % NUM_PAGES;
-        drawPage(currentPage, cfg, ns, errLog);
+        drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
     }
 
     // Poll Nightscout + redraw

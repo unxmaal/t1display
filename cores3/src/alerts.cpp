@@ -12,34 +12,12 @@
 
 /* ── AlarmState ────────────────────────────────────────────────── */
 
-void AlarmState::snooze(int timeout_min) {
-    snoozeMult++;
-    struct tm now;
-    if (getLocalTime(&now, 10)) {
-        snoozeUntil = mktime(&now) + (timeout_min * snoozeMult * 60);
-    }
+void AlarmState::snooze(unsigned long nowMs, int level, int timeout_min) {
+    alarmScheduleSnooze(&sched, nowMs, level, timeout_min);
 }
 
-int AlarmState::snoozeRemaining() const {
-    struct tm now;
-    if (!getLocalTime(&now, 10))
-        return 0;
-    int rem = (int)difftime(snoozeUntil, mktime(&now));
-    return (rem > 0) ? rem : 0;
-}
-
-bool AlarmState::shouldFire(int alarm_repeat_min) const {
-    struct tm now;
-    if (!getLocalTime(&now, 10))
-        return false;
-    int elapsed = (int)difftime(mktime(&now), lastAlarmTime);
-    return elapsed > (alarm_repeat_min * 60);
-}
-
-void AlarmState::recordFired() {
-    struct tm now;
-    if (getLocalTime(&now, 10))
-        lastAlarmTime = mktime(&now);
+unsigned long AlarmState::snoozeRemaining(unsigned long nowMs) const {
+    return alarmSnoozeRemainingSec(&sched, nowMs);
 }
 
 /* ── Sound helpers ─────────────────────────────────────────────── */
@@ -98,33 +76,26 @@ void playNoReadings(int volume) {
 
 /* ── Check and fire alarms ─────────────────────────────────────── */
 
-void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
-    // Calculate sensor age
+int currentAlarmLevel(const Config &cfg, const NSinfo &ns) {
     struct tm now;
     unsigned int sensorAgeMin = 999;
     if (getLocalTime(&now, 10)) {
         int ageSec = (int)difftime(mktime(&now), ns.sensTime);
-        sensorAgeMin = (ageSec + 30) / 60;
+        sensorAgeMin = (ageSec < 0) ? 0 : (unsigned int)((ageSec + 30) / 60);
     }
 
-    bool loopErr = false;  // TODO: wire up if loop status is added later
+    return alarmLevel(ns.sensSgv, cfg.snd_alarm, cfg.snd_warning,
+                      cfg.snd_alarm_high, cfg.snd_warning_high,
+                      sensorAgeMin, cfg.snd_no_readings, false);
+}
 
-    int level = alarmLevel(ns.sensSgv, cfg.snd_alarm, cfg.snd_warning,
-                           cfg.snd_alarm_high, cfg.snd_warning_high,
-                           sensorAgeMin, cfg.snd_no_readings, loopErr);
+void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
+    int level = currentAlarmLevel(cfg, ns);
+    unsigned long nowMs = millis();
 
-    if (level == ALARM_LEVEL_NORMAL)
+    if (!alarmShouldFire(&alarm.sched, nowMs, level, cfg.alarm_repeat))
         return;
 
-    // Don't fire during snooze
-    if (alarm.snoozeRemaining() > 0)
-        return;
-
-    // Don't fire too frequently
-    if (!alarm.shouldFire(cfg.alarm_repeat))
-        return;
-
-    // Fire — each condition has a distinct melody
     switch (level) {
         case ALARM_LEVEL_LOW_ALARM:
             playLowAlarm(cfg.alarm_volume);
@@ -145,6 +116,5 @@ void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
             playHighAlarm(cfg.alarm_volume);
             break;
     }
-    alarm.recordFired();
+    alarmRecordFired(&alarm.sched, nowMs);
 }
-
