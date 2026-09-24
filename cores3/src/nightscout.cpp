@@ -5,6 +5,7 @@
  */
 
 #include "nightscout.h"
+#include "ns_url_build.h"
 #include "ns_pure_logic.h"
 #include "ns_json_parse.h"
 
@@ -33,30 +34,6 @@ static void logError(ErrorLog &errLog, int code) {
 }
 
 /* ── URL builder ───────────────────────────────────────────────── */
-
-static void buildBaseUrl(char *out, size_t outSize, const char *url) {
-    out[0] = '\0';
-    if (strncmp(url, "http", 4) != 0)
-        strlcat(out, "https://", outSize);
-    strlcat(out, url, outSize);
-
-    // strip trailing slash
-    size_t len = strlen(out);
-    if (len > 0 && out[len - 1] == '/')
-        out[len - 1] = '\0';
-}
-
-static void appendToken(char *url, size_t urlSize, const char *token) {
-    if (token[0] == '\0')
-        return;
-    if (strchr(url, '?'))
-        strlcat(url, "&token=", urlSize);
-    else
-        strlcat(url, "?token=", urlSize);
-    strlcat(url, token, urlSize);
-}
-
-/* ── HTTP fetch + sanitize helper ─────────────────────────────── */
 
 static int httpGetSanitized(const char *url, char **outBuf, size_t *outLen,
                              ErrorLog &errLog, int errCode) {
@@ -107,16 +84,9 @@ static int httpGetSanitized(const char *url, char **outBuf, size_t *outLen,
 
 static int fetchSGV(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     char nsUrl[320];
-    buildBaseUrl(nsUrl, sizeof(nsUrl), cfg.url);
-
-    bool isSugarmate = (strstr(nsUrl, "sugarmate") != nullptr);
-
-    if (!isSugarmate) {
-        strlcat(nsUrl, "/api/v1/entries.json?count=10", sizeof(nsUrl));
-        if (cfg.sgv_only)
-            strlcat(nsUrl, "&find[type][$eq]=sgv", sizeof(nsUrl));
-    }
-    appendToken(nsUrl, sizeof(nsUrl), cfg.token);
+    nsBuildBaseUrl(nsUrl, sizeof(nsUrl), cfg.url);
+    nsAppendEntriesPath(nsUrl, sizeof(nsUrl));
+    nsAppendToken(nsUrl, sizeof(nsUrl), cfg.token);
 
     char *buf = nullptr;
     size_t bufLen = 0;
@@ -125,14 +95,7 @@ static int fetchSGV(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
         return rc;
 
     SGVEntry entry;
-    DeltaInfo delta;
-    int parseResult;
-
-    if (isSugarmate) {
-        parseResult = parseSugarmateResponse(buf, bufLen, &entry, &delta);
-    } else {
-        parseResult = parseSGVResponse(buf, bufLen, &entry);
-    }
+    int parseResult = parseSGVResponse(buf, bufLen, &entry);
     delete[] buf;
 
     if (parseResult != PARSE_OK) {
@@ -141,7 +104,6 @@ static int fetchSGV(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
         return code;
     }
 
-    // Map SGVEntry → NSinfo
     strlcpy(ns.sensDev, entry.device, sizeof(ns.sensDev));
     ns.rawtime = entry.date_ms;
     ns.sensTime = entry.date_sec;
@@ -151,14 +113,6 @@ static int fetchSGV(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     ns.sensSgv = entry.sgv_mmol;
     ns.arrowAngle = entry.arrow_angle;
 
-    // Sugarmate provides delta in the SGV response
-    if (isSugarmate) {
-        ns.delta_mgdl = delta.mgdl;
-        ns.delta_scaled = delta.mmol;
-        formatDelta(ns.delta_display, sizeof(ns.delta_display),
-                    &delta, cfg.show_mgdl);
-    }
-
     return 0;
 }
 
@@ -166,9 +120,9 @@ static int fetchSGV(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
 
 static int fetchProperties(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     char nsUrl[320];
-    buildBaseUrl(nsUrl, sizeof(nsUrl), cfg.url);
-    strlcat(nsUrl, "/api/v2/properties/delta", sizeof(nsUrl));
-    appendToken(nsUrl, sizeof(nsUrl), cfg.token);
+    nsBuildBaseUrl(nsUrl, sizeof(nsUrl), cfg.url);
+    nsAppendPropertiesPath(nsUrl, sizeof(nsUrl));
+    nsAppendToken(nsUrl, sizeof(nsUrl), cfg.token);
 
     char *buf = nullptr;
     size_t bufLen = 0;
@@ -205,9 +159,7 @@ int readNightscout(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     if (rc != 0)
         return rc;
 
-    // Sugarmate already provides delta in the SGV response
-    if (strstr(cfg.url, "sugarmate") == nullptr)
-        fetchProperties(cfg, ns, errLog);
+    fetchProperties(cfg, ns, errLog);
 
     nsErrorLogSuccess(&errLog);
     return 0;

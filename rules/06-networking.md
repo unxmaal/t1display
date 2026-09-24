@@ -9,12 +9,11 @@
 
 Two sequential HTTP calls per update cycle (every 15 seconds when data is stale):
 
-1. **SGV entries:** `GET https://<host>/api/v1/entries.json?count=10`
+1. **SGV entries:** `GET https://<host>/api/v1/entries.json?count=1&find[type][$eq]=sgv`
    - With token: appended as `&token=<token>`
    - Optional SGV filter: `find[type][$eq]=sgv`
 2. **Properties:** `GET https://<host>/api/v2/properties/iob,cob,delta,loop,basal`
 
-**Sugarmate alternative:** `GET https://sugarmate.io/api/v1/<token>/latest.json`
 
 ## HTTPS
 
