@@ -65,6 +65,10 @@ struct ParsedConfig {
     int restart_at_logged_errors;
     char restart_at_time[10];
 
+    char otaPassword[64];
+    char webUser[32];
+    char webPass[64];
+
     int snd_loop_error;
 
     int unknownKeys;
@@ -109,6 +113,12 @@ int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg);
  * Validate and clamp all integer fields to safe ranges.
  */
 void validateConfig(ParsedConfig *cfg);
+
+/** OTA is only started when a password is configured. */
+bool configOtaEnabled(const ParsedConfig *cfg);
+
+/** Web config requires auth only when both user and password are set. */
+bool configWebAuthEnabled(const ParsedConfig *cfg);
 
 /**
  * Serialize a ParsedConfig to INI text (inverse of parseConfigBuffer).

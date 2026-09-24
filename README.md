@@ -107,6 +107,26 @@ Leading and trailing spaces cannot be represented, since they are trimmed. SSID
 and password are limited to 63 characters each. `#` and `;` only start a comment
 at the beginning of a line.
 
+### Security
+
+Three optional keys, all empty by default:
+
+```ini
+ota_password = your-ota-secret
+web_user = yourname
+web_pass = your-web-secret
+```
+
+`ota_password` gates over-the-air updates. **With it unset, OTA does not start at
+all** — the port stays closed rather than accepting unauthenticated firmware.
+Set it before relying on OTA, and add `--auth=<password>` to your upload flags.
+
+`web_user` and `web_pass` together enable HTTP Basic auth on the config UI. With
+either unset there is no authentication, and anyone on your network can read the
+page — which contains your WiFi passwords and Nightscout token in cleartext.
+Basic auth over plain HTTP is weak, but it is the difference between needing a
+credential and needing nothing.
+
 ### Sections
 
 `[config]` for everything else, `[wlan1]` through `[wlan10]` for networks. Any
@@ -139,7 +159,13 @@ pio test -e native
 
 # Serial monitor
 cd cores3 && pio device monitor -b 115200
+
+# Build for the Wokwi simulator (joins the Wokwi-GUEST virtual network)
+cd cores3 && pio run -e m5stack-cores3 --project-option="build_flags=-DWOKWI_SIM"
 ```
+
+The `Wokwi-GUEST` open network is only joined in simulator builds. Release
+firmware never associates with it.
 
 After the first USB flash, OTA updates work by setting `upload_protocol = espota`
 and `upload_port = t1display.local` in `cores3/platformio.ini`.

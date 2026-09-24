@@ -92,11 +92,12 @@ static void connectWiFi() {
         }
     }
 
-    // Wokwi virtual network — harmless on real hardware (AP won't exist)
+#ifdef WOKWI_SIM
     wifiMulti.addAP("Wokwi-GUEST", "");
+#endif
 
     if (apCount == 0) {
-        Serial.println("[WIFI] No user SSIDs configured (Wokwi-GUEST added as fallback)");
+        Serial.println("[WIFI] No SSIDs configured");
     }
 
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -239,7 +240,7 @@ void setup() {
 
     // OTA updates (only useful once WiFi is connected)
     if (WiFi.status() == WL_CONNECTED) {
-        setupOTA(cfg.deviceName);
+        setupOTA(cfg.deviceName, cfg.otaPassword);
         setupWebConfig(&cfg);
     }
 

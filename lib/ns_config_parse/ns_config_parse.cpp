@@ -140,6 +140,12 @@ static bool applyStringKey(ParsedConfig *cfg, const char *key, const char *val) 
         strlcpy(cfg->deviceName, val, sizeof(cfg->deviceName));
     else if (strcmp(key, "restart_at_time") == 0)
         strlcpy(cfg->restart_at_time, val, sizeof(cfg->restart_at_time));
+    else if (strcmp(key, "ota_password") == 0)
+        strlcpy(cfg->otaPassword, val, sizeof(cfg->otaPassword));
+    else if (strcmp(key, "web_user") == 0)
+        strlcpy(cfg->webUser, val, sizeof(cfg->webUser));
+    else if (strcmp(key, "web_pass") == 0)
+        strlcpy(cfg->webPass, val, sizeof(cfg->webPass));
     else
         return false;
     return true;
@@ -294,6 +300,14 @@ void validateConfig(ParsedConfig *cfg) {
     cfg->snd_no_readings   = clampInt(cfg->snd_no_readings, 0, 1440);
 }
 
+bool configOtaEnabled(const ParsedConfig *cfg) {
+    return cfg->otaPassword[0] != '\0';
+}
+
+bool configWebAuthEnabled(const ParsedConfig *cfg) {
+    return cfg->webUser[0] != '\0' && cfg->webPass[0] != '\0';
+}
+
 /* ── Serialization ─────────────────────────────────────────────── */
 
 int serializeConfigINI(const ParsedConfig *cfg, char *buf, size_t bufSize) {
@@ -341,6 +355,9 @@ int serializeConfigINI(const ParsedConfig *cfg, char *buf, size_t bufSize) {
     EMIT("restart_at_logged_errors = %d\n", cfg->restart_at_logged_errors);
     EMIT("restart_at_time = %s\n", cfg->restart_at_time);
     EMIT("snd_loop_error = %d\n", cfg->snd_loop_error);
+    EMIT("ota_password = %s\n", cfg->otaPassword);
+    EMIT("web_user = %s\n", cfg->webUser);
+    EMIT("web_pass = %s\n", cfg->webPass);
 
     for (int i = 0; i < CFG_MAX_WLAN; i++) {
         if (cfg->wlanssid[i][0] != '\0') {
