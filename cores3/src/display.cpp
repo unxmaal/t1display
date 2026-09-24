@@ -120,7 +120,8 @@ static void drawBattery(int x, int y, int pct) {
 
 /* ── Page 0: Large glucose ─────────────────────────────────────── */
 
-void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog) {
+void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog,
+                     int snoozeRemainingSec) {
     // Build the display model — all decisions happen here
     struct tm now;
     long now_sec = 0;
@@ -147,7 +148,6 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
                            cfg.snd_alarm_high, cfg.snd_warning_high,
                            sensorAgeMin, cfg.snd_no_readings, false);
 
-    int snoozeRem = 0;
 
     GlucosePageModel model;
     buildGlucoseModel(&model,
@@ -157,7 +157,7 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
         time_hour, time_min,
         now_sec, (long)ns.sensTime,
         cfg.yellow_low, cfg.yellow_high, cfg.red_low, cfg.red_high,
-        level, snoozeRem,
+        level, snoozeRemainingSec,
         batteryPct, errLog.count);
 
     // ── Render from model ─────────────────────────────────────────
@@ -301,11 +301,12 @@ void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog)
 
 /* ── Page dispatcher ───────────────────────────────────────────── */
 
-void drawPage(int page, const Config &cfg, const NSinfo &ns, const ErrorLog &errLog) {
+void drawPage(int page, const Config &cfg, const NSinfo &ns, const ErrorLog &errLog,
+              int snoozeRemainingSec) {
     switch (page) {
-        case PAGE_GLUCOSE: drawGlucosePage(cfg, ns, errLog); break;
+        case PAGE_GLUCOSE: drawGlucosePage(cfg, ns, errLog, snoozeRemainingSec); break;
         case PAGE_STATUS:  drawStatusPage(cfg, ns, errLog); break;
-        default:           drawGlucosePage(cfg, ns, errLog); break;
+        default:           drawGlucosePage(cfg, ns, errLog, snoozeRemainingSec); break;
     }
 
     // Flush canvas to display atomically (zero flicker)
