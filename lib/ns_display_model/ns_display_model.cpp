@@ -167,7 +167,7 @@ void buildStatusModel(
     snprintf(model->heap_str, sizeof(model->heap_str),
              "Free Heap = %lu", heap_free);
 
-    char uptimeBuf[32];
+    char uptimeBuf[22];
     formatUptime(uptimeBuf, sizeof(uptimeBuf), uptime_ms);
     snprintf(model->uptime_str, sizeof(model->uptime_str),
              "Up time = %s", uptimeBuf);
