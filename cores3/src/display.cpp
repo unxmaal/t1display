@@ -139,14 +139,10 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
     int batteryPct = M5.Power.getBatteryLevel();
 
     // Compute alarm level for the model
-    unsigned int sensorAgeMin = 999;
-    if (now_sec > 0 && ns.sensTime > 0) {
-        int ageSec = (int)(now_sec - ns.sensTime);
-        sensorAgeMin = (ageSec + 30) / 60;
-    }
+    int sensorAgeMin = sensorAgeMinutes((long)now_sec, (long)ns.sensTime);
     int level = alarmLevel(ns.sensSgv, cfg.snd_alarm, cfg.snd_warning,
                            cfg.snd_alarm_high, cfg.snd_warning_high,
-                           sensorAgeMin, cfg.snd_no_readings, false);
+                           (unsigned int)sensorAgeMin, cfg.snd_no_readings, false);
 
 
     GlucosePageModel model;
