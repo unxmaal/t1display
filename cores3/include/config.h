@@ -37,20 +37,9 @@ struct NSinfo {
 
 /* ── Error log ─────────────────────────────────────────────────── */
 
-#define ERR_LOG_SIZE 10
+#include "ns_error_log.h"
 
-struct ErrorLogEntry {
-    struct tm err_time;
-    int       err_code;
-};
-
-struct ErrorLog {
-    ErrorLogEntry entries[ERR_LOG_SIZE];
-    int ptr   = 0;       // next insertion index (0–9)
-    int count = 0;       // total errors since boot
-
-    void add(int code);
-};
+typedef NsErrorLog ErrorLog;
 
 /* ── Error codes ───────────────────────────────────────────────── */
 

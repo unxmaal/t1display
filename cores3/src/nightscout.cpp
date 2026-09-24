@@ -23,19 +23,13 @@ static bool secureClientInit = false;
 
 /* ── ErrorLog ──────────────────────────────────────────────────── */
 
-void ErrorLog::add(int code) {
-    if (ptr >= ERR_LOG_SIZE) {
-        // shift left — drop oldest
-        for (int i = 0; i < ERR_LOG_SIZE - 1; i++)
-            entries[i] = entries[i + 1];
-        ptr = ERR_LOG_SIZE - 1;
-    }
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 10))
-        entries[ptr].err_time = timeinfo;
-    entries[ptr].err_code = code;
-    ptr++;
-    count++;
+static long nowEpochOrZero() {
+    struct tm t;
+    return getLocalTime(&t, 10) ? (long)mktime(&t) : 0;
+}
+
+static void logError(ErrorLog &errLog, int code) {
+    nsErrorLogAdd(&errLog, code, nowEpochOrZero());
 }
 
 /* ── URL builder ───────────────────────────────────────────────── */
@@ -70,6 +64,8 @@ static int httpGetSanitized(const char *url, char **outBuf, size_t *outLen,
     http.setConnectTimeout(10000);
     http.setTimeout(15000);
     NS_LOG.printf("[HTTP] GET %s\n", url);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
     if (strncmp(url, "https", 5) == 0) {
         if (!secureClientInit) {
             secureClient.setInsecure();
@@ -79,18 +75,15 @@ static int httpGetSanitized(const char *url, char **outBuf, size_t *outLen,
     } else {
         http.begin(url);
     }
-    static const char* hdrs[] = {"location"};
-    http.collectHeaders(hdrs, 1);
-
     int httpCode = http.GET();
     NS_LOG.printf("[HTTP] Response: %d\n", httpCode);
     if (httpCode <= 0) {
-        errLog.add(httpCode);
+        logError(errLog, httpCode);
         http.end();
         return httpCode;
     }
     if (httpCode != 200) {
-        errLog.add(httpCode);
+        logError(errLog, httpCode);
         http.end();
         return httpCode;
     }
@@ -144,7 +137,7 @@ static int fetchSGV(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
 
     if (parseResult != PARSE_OK) {
         int code = (parseResult == PARSE_ERR_EMPTY) ? ERR_NO_DATA : ERR_JSON_PARSE;
-        errLog.add(code);
+        logError(errLog, code);
         return code;
     }
 
@@ -188,7 +181,7 @@ static int fetchProperties(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     delete[] buf;
 
     if (parseResult != PARSE_OK) {
-        errLog.add(ERR_JSON2_PARSE);
+        logError(errLog, ERR_JSON2_PARSE);
         return ERR_JSON2_PARSE;
     }
 
@@ -204,7 +197,7 @@ static int fetchProperties(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
 
 int readNightscout(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     if (cfg.url[0] == '\0') {
-        errLog.add(ERR_NO_DATA);
+        logError(errLog, ERR_NO_DATA);
         return ERR_NO_DATA;
     }
 
@@ -213,10 +206,9 @@ int readNightscout(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
         return rc;
 
     // Sugarmate already provides delta in the SGV response
-    if (strstr(cfg.url, "sugarmate") != nullptr)
-        return 0;
+    if (strstr(cfg.url, "sugarmate") == nullptr)
+        fetchProperties(cfg, ns, errLog);
 
-    // Fetch delta from properties endpoint — non-fatal if it fails
-    fetchProperties(cfg, ns, errLog);
+    nsErrorLogSuccess(&errLog);
     return 0;
 }
