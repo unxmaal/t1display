@@ -89,6 +89,9 @@ int parseDeltaResponse(const char *json, size_t len, DeltaInfo *delta) {
     if (err)
         return PARSE_ERR_JSON;
 
+    if (!doc["delta"]["mgdl"].is<int>())
+        return PARSE_ERR_NO_SGV;
+
     delta->mgdl = doc["delta"]["mgdl"].as<int>();
     delta->mmol = delta->mgdl / 18.0f;
 

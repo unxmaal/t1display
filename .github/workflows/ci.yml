@@ -43,7 +43,7 @@ jobs:
           python-version: '3.12'
       - run: pip install --upgrade platformio gcovr
       - run: pio test -e native_coverage
-      - run: gcovr --root . --filter 'lib/' --txt --print-summary
+      - run: gcovr --root . --filter 'lib/' --txt --print-summary --fail-under-line 95 --fail-under-branch 78
 
   static-analysis:
     runs-on: ubuntu-latest

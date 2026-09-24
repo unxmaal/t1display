@@ -135,6 +135,9 @@ static int fetchProperties(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     delete[] buf;
 
     if (parseResult != PARSE_OK) {
+        ns.delta_display[0] = '\0';
+        ns.delta_mgdl = 0;
+        ns.delta_scaled = 0.0f;
         logError(errLog, ERR_JSON2_PARSE);
         return ERR_JSON2_PARSE;
     }
