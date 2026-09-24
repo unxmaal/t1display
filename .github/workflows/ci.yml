@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  native-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-native-${{ hashFiles('platformio.ini') }}
+      - run: pip install --upgrade platformio
+      - run: pio test -e native
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-native-${{ hashFiles('platformio.ini') }}
+      - run: pip install --upgrade platformio
+      - run: pio test -e native_asan
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --upgrade platformio gcovr
+      - run: pio test -e native_coverage
+      - run: gcovr --root . --filter 'lib/' --txt --print-summary
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --upgrade platformio
+      - run: pio check -e native --fail-on-defect=high
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-cores3-${{ hashFiles('cores3/platformio.ini') }}
+      - run: pip install --upgrade platformio
+      - run: pio run -d cores3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            cores3/.pio/build/m5stack-cores3/firmware.bin
+            cores3/.pio/build/m5stack-cores3/firmware.elf
