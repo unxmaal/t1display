@@ -26,6 +26,9 @@ void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm);
 /** Alarm level currently indicated by the data, without side effects. */
 int currentAlarmLevel(const Config &cfg, const NSinfo &ns);
 
+/** Advance melody playback. Call every loop iteration. */
+void serviceAlerts();
+
 /** Individual alert melodies — for testing via web UI. */
 void playLowAlarm(int volume);
 void playLowWarning(int volume);

@@ -6,6 +6,7 @@
 
 #include "alerts.h"
 #include "ns_pure_logic.h"
+#include "ns_melody.h"
 
 #include <M5Unified.h>
 #include <time.h>
@@ -27,50 +28,58 @@ static int scaleVolume(int vol) {
     return (vol * 255) / 100;
 }
 
+static MelodySequencer melody;
+
 static void playMelody(int volume, const int *notes, const int *durations, int count) {
     M5.Speaker.setVolume(scaleVolume(volume));
-    for (int i = 0; i < count; i++) {
-        M5.Speaker.tone(notes[i], durations[i]);
-        delay(durations[i] + 60);
-    }
+    melodyStart(&melody, notes, durations, count, millis());
+}
+
+void serviceAlerts() {
+    if (!melodyActive(&melody))
+        return;
+    unsigned long nowMs = millis();
+    int idx = melodyNextNote(&melody, nowMs);
+    if (idx >= 0)
+        M5.Speaker.tone(melodyFreqAt(&melody, idx), melodyDurationAt(&melody, idx));
 }
 
 // Low alarm: descending tritone + chromatic fall — psychoacoustically urgent
 // B5→F5 (tritone), then chromatic descent E5→Eb5→D5→Db5 (falling sensation)
 // Repeated twice with shorter gaps for urgency
 void playLowAlarm(int volume) {
-    const int notes[]    = { 988, 698,  659, 622, 587, 554,
+    static const int notes[]    = { 988, 698,  659, 622, 587, 554,
                              988, 698,  659, 622, 587, 554 };
-    const int durations[] = { 120, 200,  100, 100, 100, 250,
+    static const int durations[] = { 120, 200,  100, 100, 100, 250,
                               120, 200,  100, 100, 100, 250 };
     playMelody(volume, notes, durations, 12);
 }
 
 // Low warning: gentle descending three-note — B5 G5 D5
 void playLowWarning(int volume) {
-    const int notes[]    = { 988, 784, 587 };
-    const int durations[] = { 200, 200, 400 };
+    static const int notes[]    = { 988, 784, 587 };
+    static const int durations[] = { 200, 200, 400 };
     playMelody(volume, notes, durations, 3);
 }
 
 // High alarm: urgent ascending major — C5 E5 G5 (repeated)
 void playHighAlarm(int volume) {
-    const int notes[]    = { 523, 659, 784,  523, 659, 784 };
-    const int durations[] = { 150, 150, 300,  150, 150, 300 };
+    static const int notes[]    = { 523, 659, 784,  523, 659, 784 };
+    static const int durations[] = { 150, 150, 300,  150, 150, 300 };
     playMelody(volume, notes, durations, 6);
 }
 
 // High warning: gentle ascending two-note — C5 E5
 void playHighWarning(int volume) {
-    const int notes[]    = { 523, 659 };
-    const int durations[] = { 200, 350 };
+    static const int notes[]    = { 523, 659 };
+    static const int durations[] = { 200, 350 };
     playMelody(volume, notes, durations, 2);
 }
 
 // No readings / stale data: two-tone attention chime — G5 D5
 void playNoReadings(int volume) {
-    const int notes[]    = { 784, 587 };
-    const int durations[] = { 250, 400 };
+    static const int notes[]    = { 784, 587 };
+    static const int durations[] = { 250, 400 };
     playMelody(volume, notes, durations, 2);
 }
 

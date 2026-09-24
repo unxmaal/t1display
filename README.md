@@ -193,6 +193,10 @@ Hardware-dependent code lives in `cores3/`. Everything that can be tested on the
 host lives in `lib/` and is compiled into both the firmware and the native tests.
 
 - `cores3/src/` — CoreS3 firmware: display, WiFi, alerts, OTA, web config
+  - Nightscout fetches run on a dedicated FreeRTOS task pinned to core 0.
+    `NSinfo` and the error log are exchanged with the render loop under a
+    mutex, so a slow or wedged network request cannot stall touch input,
+    the snooze button, or alarm checks.
 - `lib/ns_pure_logic/` — glucose colour, alarm levels, formatting, snooze, CRC
 - `lib/ns_json_parse/` — Nightscout API JSON parsing
 - `lib/ns_display_model/` — display layout as pure data structs
