@@ -1,42 +1,54 @@
 # Rule 04: Configuration System
 
-## Two Sources (with fallback)
+## Source of truth
 
-1. **SD card INI file** (`/M5NS.INI`) — parsed at boot by `IniFile` library. Primary source.
-2. **NVS Flash** (`Preferences` namespace `"M5NSconfig"`) — fallback if SD/INI missing. Also where the web config UI saves.
+Single source: **SD card INI** at `/M5NS.INI`, read in `cores3/src/main.cpp`
+and parsed by `parseConfigBuffer()` in `lib/ns_config_parse/`. The web config UI
+(`cores3/src/webconfig.cpp`) writes the same file back via `serializeConfigINI()`.
+There is no NVS/Preferences fallback and no bootstrap AP mode.
 
-If neither has WiFi credentials, the device enters **bootstrap/AP mode**.
+## Struct
 
-## Config Struct
+`ParsedConfig` in `lib/ns_config_parse/ns_config_parse.h`. Notable fields:
 
-All settings live in `tConfig cfg` (defined in `M5NSconfig.h`). Key fields:
+- `url[128]`, `token[64]`, `userName[32]`, `deviceName[32]`
+- `yellow_low/high`, `red_low/high` — display color thresholds
+- `snd_alarm`, `snd_warning`, `snd_alarm_high`, `snd_warning_high` — audio thresholds
+- `wlanssid[10][64]`, `wlanpass[10][64]`
+- `unknownKeys` — count of keys the parser did not recognize
 
-- `url[128]` — Nightscout URL (auto-prefixed with `https://` if no scheme)
-- `token[64]` — Nightscout security token
-- `show_mgdl` — 0=mmol/L, 1=mg/dL
-- `yellow_low/high`, `red_low/high` — display color thresholds (float, mmol/L)
-- `snd_warning/alarm/warning_high/alarm_high` — audio alarm thresholds (float, mmol/L)
-- `wlanssid[10][64]`, `wlanpass[10][64]` — up to 10 WiFi networks
-- `LED_strip_pin/count/brightness` — NeoPixel config
-- `vibration_mode/pin/strength` — vibration motor config
-- `brightness1/2/3` — LCD brightness levels
+## Units: thresholds are always mmol/L
 
-## Live Data Struct
+`show_mgdl` controls **display formatting only**. It does not rescale thresholds.
+All threshold fields are compared against mmol/L values in `glucoseColor()` and
+`alarmLevel()` regardless of `show_mgdl`.
 
-CGM readings live in `NSinfo ns` (defined in `M5NSconfig.h`):
-- `sensSgv` / `sensSgvMgDl` — current glucose value
-- `sensDir[32]` — trend direction string
-- `last10sgv[10]` — mini-graph history
-- `iob`, `cob`, `delta_*`, `loop_*`, `basal_*` — extended Nightscout data
+Upstream M5_NightscoutMon used the opposite convention (`show_mgdl = 1` meant all
+INI values were mg/dL). Any INI inherited from upstream will silently mis-trigger:
+mg/dL thresholds read as mmol/L make every normal reading look hypo. Never copy
+threshold values from an upstream INI.
 
-## INI File Format
+## INI format
 
-See `SD/M5NS.INI` for the example. Sections: `[M5NS]` for main config, `[wlan0]`–`[wlan9]` for WiFi networks.
+Sections are `[config]` and `[wlan1]`–`[wlan10]` (`wlan1` maps to index 0).
+Values are unquoted; everything after the first `=` is taken verbatim after
+whitespace trimming. An SSID or password containing spaces needs no quotes —
+quoting it makes the quotes part of the value. Max 63 characters each.
 
-## Adding a New Config Field
+## Unknown keys
 
-1. Add the field to `tConfig` in `M5NSconfig.h` (with default value)
-2. Add INI reading in `readConfiguration()` in `M5NSconfig.cpp`
-3. Add NVS read/write in `readConfigFromFlash()` / `saveConfigToFlash()` in `M5NSconfig.cpp`
-4. Add to the web config UI in `M5NSWebConfig.cpp` (HTML form + `/savecfg` handler)
-5. Update `SD/M5NS.INI` with the new field and a comment
+`parseConfigBuffer()` increments `cfg->unknownKeys` for any key it does not
+recognize, in both `[config]` and `[wlan*]` sections. A correct INI parses with
+`unknownKeys == 0`. This is asserted against the shipped `SD/M5NS.INI` by
+`test/native/test_sample_ini/`.
+
+## Adding a new config field
+
+1. Add the field to `ParsedConfig` in `ns_config_parse.h`
+2. Set its default in `configDefaults()`
+3. Add a `strcmp(key, ...)` branch in `parseConfigBuffer()` before the final `else`
+4. Emit it from `serializeConfigINI()`
+5. Clamp it in `validateConfig()` if it has a valid range
+6. Add the form field and `/savecfg` handling in `cores3/src/webconfig.cpp`
+7. Add it to `SD/M5NS.INI`, or `test_sample_ini` roundtrip coverage will not see it
+8. Add native tests in `test/native/test_config_parse/`

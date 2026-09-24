@@ -15,7 +15,7 @@
 
 void configDefaults(ParsedConfig *cfg) {
     *cfg = ParsedConfig{};
-    strlcpy(cfg->deviceName, "NightscoutMon", sizeof(cfg->deviceName));
+    strlcpy(cfg->deviceName, "t1display", sizeof(cfg->deviceName));
     cfg->timeZone          = 3600;
     cfg->yellow_low        = 4.5f;
     cfg->yellow_high       = 9.0f;
@@ -111,6 +111,8 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
             } else if (strcmp(key, "pass") == 0) {
                 strlcpy(cfg->wlanpass[currentWlan], val, 64);
                 parsed++;
+            } else {
+                cfg->unknownKeys++;
             }
         } else {
             // [config] section
@@ -182,6 +184,8 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
                 strlcpy(cfg->restart_at_time, val, sizeof(cfg->restart_at_time)); parsed++;
             } else if (strcmp(key, "snd_loop_error") == 0) {
                 cfg->snd_loop_error = atoi(val); parsed++;
+            } else {
+                cfg->unknownKeys++;
             }
         }
 

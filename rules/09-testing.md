@@ -38,11 +38,11 @@ Rules for `ns_pure_logic`:
 - Configuration parsing helpers
 - Any pure function: same inputs → same outputs, no side effects
 
-### What stays in the .ino
+### What stays in cores3/src
 
-- Anything touching hardware (M5.Lcd, WiFi, SD, NeoPixel, I2S)
+- Anything touching hardware (M5.Display, WiFi, SD, I2S)
 - Functions using Arduino-specific types as primary interface
-- Setup/loop, web server, display drawing, alarm handling
+- setup/loop, web server, display drawing, alarm playback
 
 ## Test file layout
 
@@ -61,9 +61,9 @@ Each test suite goes in its own subdirectory under `test/native/`.
 ## TDD workflow
 
 1. Write the test first (RED — it should fail or not compile)
-2. Implement the function in `ns_pure_logic.cpp` (GREEN — tests pass)
-3. Replace inline logic in `.ino` with a call to the extracted function
-4. Verify device build: `pio run -e m5stack-core-esp32`
+2. Implement the function in the matching `lib/` module (GREEN — tests pass)
+3. Replace inline logic in `cores3/src/` with a call to it
+4. Verify device build: `cd cores3 && pio run`
 
 ## Conventions
 
@@ -95,13 +95,9 @@ PlatformIO treats each subdirectory as a separate test suite. Flat `.cpp` files 
 
 PlatformIO auto-discovers `lib/` for all environments including native. No extra config needed. Trying to pull in source files from the repo root via `build_src_filter` or `-I` flags is fragile and doesn't work reliably with relative paths for native builds.
 
-### `src_dir = .` for root-level .ino projects
-
-Since this project keeps its `.ino` at the repo root (not in `src/`), the `[platformio]` section needs `src_dir = .`. Without it, ESP32 envs fail with "Nothing to build. Please put your source code files to the 'src' folder".
-
 ### Arduino String to char* for pure logic
 
-When extracting logic that originally used Arduino `String`, convert to `char*` buffers in the pure logic layer. At the call site in the `.ino`, use this pattern:
+`lib/` must not see Arduino types. At a call site in `cores3/src/` that holds a `String`, use this pattern:
 
 ```cpp
 {
@@ -120,10 +116,9 @@ The block scope ensures `jsonBuf` doesn't leak. The copy back to `String` is nec
 
 When extracting functions, tighten `char*` params to `const char*` where the function doesn't modify the input (e.g., `calcCRC`). This is safe — `char[]` and `char*` implicitly convert to `const char*`. It catches accidental mutation bugs at compile time.
 
-### Pre-existing ESP32 build errors
+### Tests that read repository files
 
-The `.ino` has pre-existing compile errors under PlatformIO's ESP32 toolchain that are **not** caused by the test infrastructure:
-- `AnalogClock clock` conflicts with C stdlib `clock()` from `<time.h>`
-- `drawHand()` has a type mismatch (int vs int16_t& reference)
-
-These do not affect native test builds. They existed before and need separate fixes.
+`test_sample_ini` parses the real `SD/M5NS.INI` rather than a fixture, so the
+sample users are told to copy cannot drift from what the firmware accepts. It
+locates the file by trying relative paths and then falling back to a path
+derived from `__FILE__`, so it works regardless of the runner's directory.

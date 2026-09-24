@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Knowledge MCP Server for M5_NightscoutMon.
+"""Knowledge MCP Server for t1display.
 
 External knowledge store + behavioral guardrails.
 Keeps context free for real-time work. Nudges Claude

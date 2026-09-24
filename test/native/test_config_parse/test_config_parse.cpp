@@ -20,7 +20,7 @@ static size_t loadBuf(const char *src) {
 void test_defaults_device_name(void) {
     ParsedConfig cfg;
     configDefaults(&cfg);
-    TEST_ASSERT_EQUAL_STRING("NightscoutMon", cfg.deviceName);
+    TEST_ASSERT_EQUAL_STRING("t1display", cfg.deviceName);
 }
 
 void test_defaults_timezone(void) {
@@ -468,11 +468,68 @@ void test_validate_date_format_clamped(void) {
     TEST_ASSERT_EQUAL_INT(1, cfg.default_page);
 }
 
+
+/* ── Unknown key accounting ───────────────────────────────────── */
+
+void test_defaults_unknown_keys_zero(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    TEST_ASSERT_EQUAL_INT(0, cfg.unknownKeys);
+}
+
+void test_known_keys_not_counted_unknown(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[config]\nname = Eric\ntime_zone = -18000\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_INT(0, cfg.unknownKeys);
+}
+
+void test_unknown_key_counted(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[config]\nname = Eric\nbootpic = /x.jpg\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_INT(1, cfg.unknownKeys);
+}
+
+void test_multiple_unknown_keys_counted(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[config]\nbootpic = /x.jpg\ndisplay_rotation = 1\ntemperature_unit = 1\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_INT(3, cfg.unknownKeys);
+}
+
+void test_unknown_key_in_wlan_section_counted(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[wlan1]\nssid = Net\npass = pw\nsecurity = wpa2\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_INT(1, cfg.unknownKeys);
+}
+
+void test_unknown_keys_do_not_affect_parsed_count(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[config]\nname = Eric\nbootpic = /x.jpg\n");
+    int parsed = parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_INT(1, parsed);
+    TEST_ASSERT_EQUAL_INT(1, cfg.unknownKeys);
+}
+
 /* ── Main ─────────────────────────────────────────────────────── */
 
 int main(int argc, char **argv) {
     (void)argc; (void)argv;
     UNITY_BEGIN();
+
+    RUN_TEST(test_defaults_unknown_keys_zero);
+    RUN_TEST(test_known_keys_not_counted_unknown);
+    RUN_TEST(test_unknown_key_counted);
+    RUN_TEST(test_multiple_unknown_keys_counted);
+    RUN_TEST(test_unknown_key_in_wlan_section_counted);
+    RUN_TEST(test_unknown_keys_do_not_affect_parsed_count);
 
     /* Defaults */
     RUN_TEST(test_defaults_device_name);

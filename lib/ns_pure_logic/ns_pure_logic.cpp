@@ -1,4 +1,4 @@
-/*  ns_pure_logic.cpp — Hardware-free pure logic for M5_NightscoutMon
+/*  ns_pure_logic.cpp — Hardware-free pure logic for t1display
  *
  *  Copyright (C) 2024-2026 Eric Dodd <eric.e.dodd@gmail.com>
  *  SPDX-License-Identifier: GPL-3.0-or-later
@@ -65,6 +65,8 @@ int directionToAngle(const char* direction) {
 /* ── Snooze packet helpers ──────────────────────────────────────── */
 
 bool isValidSnoozePacket(const char* packetBuffer) {
+    /* Wire format is fixed by upstream M5_NightscoutMon for UDP snooze interop.
+     * Do not rename with the project. */
     return strncmp(packetBuffer, "M5_Nightscout SNOOZE: USR=", 26) == 0;
 }
 

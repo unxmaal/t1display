@@ -21,11 +21,11 @@ This is a mixed-convention codebase. **Match the surrounding code**, don't try t
 ## Include Patterns
 
 - System/library headers: angle brackets — `<Arduino.h>`, `<WiFi.h>`, `<ArduinoJson.h>`
-- Project-local files: double quotes — `"externs.h"`, `"M5NSconfig.h"`
+- Project-local files: double quotes — `"ns_config_parse.h"`, `"display.h"`
 
 ## String Handling
 
-Mixed C-style and Arduino String. Use whatever matches the surrounding code:
+C-style buffers in `lib/`, which must stay free of Arduino types. Arduino `String` is allowed in `cores3/src/` only:
 - C-style `char[]` with `sprintf`/`strlcpy`/`strncpy` for config fields and fixed buffers
 - Arduino `String` for dynamic content (web server HTML, version strings)
 

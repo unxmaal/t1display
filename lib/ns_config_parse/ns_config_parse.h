@@ -63,6 +63,8 @@ struct ParsedConfig {
 
     int snd_loop_error;
 
+    int unknownKeys;
+
     char wlanssid[CFG_MAX_WLAN][64];
     char wlanpass[CFG_MAX_WLAN][64];
 };

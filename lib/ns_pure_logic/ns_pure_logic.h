@@ -1,4 +1,4 @@
-/*  ns_pure_logic.h — Hardware-free pure logic for M5_NightscoutMon
+/*  ns_pure_logic.h — Hardware-free pure logic for t1display
  *
  *  Every function here compiles on both ESP32 (Arduino) and host (native).
  *  No Arduino.h, no M5Stack.h, no WiFi.h — only standard C/C++ types.

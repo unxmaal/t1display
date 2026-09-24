@@ -14,18 +14,15 @@
 - Nightscout API polling: every 15 seconds, but only fetches when data age > 5 minutes.
 - Don't add blocking operations to `loop()` — they freeze the display and web server.
 
-## NVS Flash (Preferences)
+## Persistence
 
-- Namespace: `"M5NSconfig"`
-- Key names limited to 15 characters by ESP32 NVS
-- Used for: config backup, soft restart flag (`SoftReset`), snooze state (`SnoozeUntil`)
-- `preferences.begin("M5NSconfig", false)` — false = read-write
+No NVS/Preferences use. The SD card `/M5NS.INI` is the only persisted state;
+snooze and restart state live in RAM and reset on power cycle.
 
 ## I2C Bus
 
-- Shared by: DHT12, SHT30, Micro Dot pHAT
-- Default pins: SDA=21, SCL=22 (M5Stack standard)
-- No bus contention handling — sensors polled infrequently
+- Managed by M5Unified for the CoreS3 internal peripherals
+- No external sensors are wired up in this build
 
 ## Power
 

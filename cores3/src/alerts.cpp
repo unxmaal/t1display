@@ -1,3 +1,9 @@
+/*  alerts.cpp
+ *
+ *  Copyright (C) 2024-2026 Eric Dodd <eric.e.dodd@gmail.com>
+ *  SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "alerts.h"
 #include "ns_pure_logic.h"
 

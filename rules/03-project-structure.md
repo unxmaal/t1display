@@ -2,58 +2,64 @@
 
 ## Layout
 
-This is a **flat Arduino IDE sketch** — all source files live at the repository root. There is no `src/` directory.
+PlatformIO project. Firmware lives under `cores3/`; hardware-free logic lives in
+`lib/` and is compiled by both the firmware and the native test build.
 
 ```
-M5_NightscoutMon.ino    — Main sketch (~2900 lines): setup(), loop(), display, alarms, WiFi, HTTP, JSON
-M5NSconfig.h / .cpp     — tConfig and NSinfo structs, INI file reading, NVS flash read/write
-M5NSWebConfig.h / .cpp  — Embedded web server: config UI, OTA update, route handlers
-externs.h               — Shared extern declarations across compilation units
-Free_Fonts.h            — TFT_eSPI GFX free font #define aliases
-IniFile.h / .cpp        — INI file parser (3rd-party, Steve Marple, LGPL v2.1)
-DHT12.h / .cpp          — DHT12 I2C temp/humidity sensor driver (bundled)
-SHT3X.h / .cpp          — SHT30 I2C temp/humidity sensor driver (bundled)
-microdot.h / .cpp       — Pimoroni Micro Dot pHAT I2C display driver (bundled)
-iot_iconset_16x16.c     — 16x16 monochrome bitmap icon data
-SD/M5NS.INI             — Example INI config file for SD card
-Binaries/               — Pre-built firmware binaries
-PlatformIO/             — Archived PlatformIO project (2020, not current)
-Stand/                  — 3D printable STL files
-platformio.ini          — PlatformIO build config (ESP32 + native test envs)
-lib/ns_pure_logic/      — Hardware-free pure logic (testable on host)
-  ns_pure_logic.h       — Declarations (extern "C", standard C types only)
-  ns_pure_logic.cpp     — Implementations
-test/native/            — Native Unity test suites (one subdirectory per suite)
-  test_crc/             — CRC-16 tests
-  test_direction/       — Direction-to-angle mapping tests
-  test_snooze/          — Snooze packet parsing tests
-  test_json_sanitize/   — JSON sanitization tests
-  test_inifile_pure/    — INI helper function tests
-rules/                  — Project rules for Claude sessions
+cores3/
+  platformio.ini        — CoreS3 firmware env + native env
+  src/
+    main.cpp            — setup(), loop(), SD config load, WiFi bring-up
+    display.cpp         — screen rendering, touch zones, pages
+    nightscout.cpp      — HTTP fetch and response handling
+    alerts.cpp          — alarm state machine, tone generation
+    ota.cpp             — ArduinoOTA setup
+    webconfig.cpp       — embedded web config UI, writes /M5NS.INI back
+  include/              — headers for the above
+  diagram.json          — Wokwi simulation layout
+  wokwi.toml            — Wokwi config
+  load_env.py           — PlatformIO pre-build script
+lib/
+  ns_pure_logic/        — glucose color, alarm levels, formatting, snooze, CRC
+  ns_json_parse/        — Nightscout API JSON parsing (ArduinoJson)
+  ns_display_model/     — display layout as pure data structs
+  ns_config_parse/      — INI parse, validate, serialize
+test/native/            — Unity suites, one subdirectory per suite
+SD/M5NS.INI             — sample SD card config, covered by test_sample_ini
+rules/                  — project rules for Claude sessions
+tools/knowledge-server.py — knowledge MCP server
+platformio.ini          — root, native test env only
+README.md               — the only prose documentation in this repo
 ```
 
 ## Build System
 
-**Primary:** Arduino IDE with M5Stack board package.
-**Board URL:** `https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/arduino/package_m5stack_index.json`
+**Firmware:** `cd cores3 && pio run` (env `m5stack-cores3`).
+**Tests:** `pio test -e native` from the repository root.
 
-**Testing:** PlatformIO with native env for host-side unit tests.
-See `rules/09-testing.md` for test architecture, TDD workflow, and gotchas.
+See `rules/09-testing.md` for test architecture and TDD workflow.
 
 ## Key Dependencies
 
 | Library | Source | Purpose |
 |---------|--------|---------|
-| M5Stack / M5Core2 | Board package | Hardware abstraction |
-| ArduinoJson | Library manager | JSON parsing (16KB DynamicJsonDocument) |
-| Adafruit NeoPixel | Library manager | WS2812 LED strip |
-| WiFi, WiFiMulti, HTTPClient, WebServer, ESPmDNS | ESP32 core | Networking |
-| Preferences | ESP32 core | NVS flash storage |
+| M5Unified | Library manager | CoreS3 hardware abstraction |
+| ArduinoJson 7 | Library manager | Nightscout JSON parsing |
+| WiFi, WiFiMulti, HTTPClient, WebServer, ESPmDNS, ArduinoOTA | ESP32 core | Networking |
 
 ## Adding New Files
 
-If you add a `.cpp` file at the root, it will be compiled automatically by Arduino IDE. If it needs access to globals, include `"externs.h"`. If new externs are needed, declare them in `externs.h`.
+**Firmware code** goes in `cores3/src/` with its header in `cores3/include/`.
+Every new source file needs the SPDX header block.
 
-**Pure logic** (no Arduino/hardware deps) goes in `lib/ns_pure_logic/`. This is auto-discovered by PlatformIO for both ESP32 and native test builds. See `rules/09-testing.md`.
+**Pure logic** (no Arduino/hardware deps) goes in `lib/<name>/`. This is picked
+up by `lib_extra_dirs` for both the firmware and native test builds. Prefer
+putting logic here so it can be tested on the host.
 
-**Test suites** go in `test/native/<suite_name>/<suite_name>.cpp`. Each suite must be in its own subdirectory — PlatformIO will not find flat `.cpp` files.
+**Test suites** go in `test/native/<suite_name>/<suite_name>.cpp`. Each suite
+must be in its own subdirectory — PlatformIO will not find flat `.cpp` files.
+
+## Documentation
+
+All prose documentation belongs in `README.md`. Do not add other `.md` files
+outside `rules/`, and do not reintroduce a CHANGELOG — git history is the log.

@@ -1,3 +1,9 @@
+/*  main.cpp
+ *
+ *  Copyright (C) 2024-2026 Eric Dodd <eric.e.dodd@gmail.com>
+ *  SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include <M5Unified.h>
 #include <WiFi.h>
 #include <WiFiMulti.h>

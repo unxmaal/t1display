@@ -2,28 +2,40 @@
 
 ## What This Is
 
-M5_NightscoutMon is an ESP32/M5Stack Arduino firmware that displays Nightscout CGM (continuous glucose monitor) data on M5Stack devices. It fetches blood glucose readings from a Nightscout server and shows them with trend arrows, color-coded alerts, and alarms.
+t1display is ESP32-S3 firmware for the M5Stack CoreS3 that displays Nightscout
+CGM (continuous glucose monitor) data as a bedside monitor. It fetches blood
+glucose readings from a Nightscout server and shows them with trend arrows,
+color-coded ranges, and melodic audio alarms.
+
+The name is a play on T1D, type 1 diabetes.
+
+## Lineage
+
+Originally forked from mlukasek/M5_NightscoutMon, then rewritten ground-up for
+the CoreS3. No upstream source files remain. Upstream targeted the M5Stack
+Core/Core2 with the Arduino IDE and a single ~2900-line .ino.
+
+Two upstream artifacts are deliberately retained and must not be renamed:
+- the GPL-3.0 LICENSE
+- the UDP snooze wire string in `lib/ns_pure_logic/ns_pure_logic.cpp`
 
 ## License
 
-GNU General Public License v3. Copyright 2018-2021 Martin Lukasek.
+GNU General Public License v3.0 or later. Copyright 2024-2026 Eric Dodd.
+Every source file carries an SPDX-License-Identifier header.
 
-## Hardware Targets
+## Hardware Target
 
-Two M5Stack variants, selected at compile time via `#ifdef ARDUINO_M5STACK_Core2`:
-
-| Target | Board ID | Library | Audio | Notes |
-|--------|----------|---------|-------|-------|
-| M5Stack BASIC/GRAY/FIRE | `M5Stack-Core-ESP32` | `M5Stack.h` | DAC, 5kHz | Physical buttons, vibration motor, NeoPixel LEDs |
-| M5Stack Core2 | `M5Stack-Core2` | `M5Core2.h` | I2S DMA, 11025Hz | Touch screen, no vibration/LEDs/Micro Dot pHAT |
+Single target: **M5Stack CoreS3** (ESP32-S3, 320x240 IPS touch display, I2S
+speaker). No compile-time board branching. Optional DIN Base with 500mAh battery.
 
 ## Key External Services
 
-- **Nightscout** — primary CGM data source (REST API v1 + v2)
-- **Sugarmate** — alternative Dexcom follower API
+- **Nightscout** — the only CGM data source (REST API v1)
 - **NTP** — `pool.ntp.org`, `time.nist.gov`, `time.google.com`
-- **OTA server** — `http://m5ns.goit.cz/update/`
+- **OTA** — ArduinoOTA over the local network, hostname from `device_name`
 
-## Version Format
+## Units
 
-`YYYYMMDDNN` — e.g., `2022100201` means 2022-10-02, revision 01. Stored in `String M5NSversion`.
+Glucose thresholds are always mmol/L internally. `show_mgdl` affects display
+formatting only. See `rules/04-configuration.md`.
