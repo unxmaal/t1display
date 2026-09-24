@@ -19,9 +19,11 @@ Core/Core2 using the Arduino IDE.
 This is a ground-up rewrite for the M5Stack CoreS3 with a new architecture,
 pure-logic libraries, a native test suite, and a PlatformIO build. No upstream
 source files remain. A handful of upstream string literals survive where they
-are protocol rather than prose — most importantly the UDP snooze packet format,
-which is kept byte-identical so snooze still syncs with upstream devices on the
-same network.
+are protocol rather than prose — most importantly the UDP snooze packet format
+in `lib/ns_pure_logic/`, which is kept byte-identical so that snooze interop
+with upstream devices remains possible. Note that the transport is not wired up:
+the packet format is parsed and tested, but nothing opens a UDP socket, so
+snooze does not currently sync between devices.
 
 ## Features
 
