@@ -2,41 +2,53 @@
 
 ## WiFi
 
-- **Station mode** (`WIFI_STA`): normal operation, `WiFiMulti` connects to strongest of up to 10 configured networks
-- **AP mode** (`WIFI_AP`): bootstrap — device becomes access point with mDNS + captive portal DNS
+STA mode only, via `WiFiMulti` with up to `CFG_MAX_WLAN` configured networks.
+There is no AP mode, no captive portal and no provisioning flow — credentials
+come from `/M5NS.INI` on the SD card.
 
-## Nightscout API
+`Wokwi-GUEST` is joined only under `-DWOKWI_SIM`. Never let an open network into
+a release build.
 
-Two sequential HTTP calls per update cycle (every 15 seconds when data is stale):
+## Nightscout requests
 
-1. **SGV entries:** `GET https://<host>/api/v1/entries.json?count=1&find[type][$eq]=sgv`
-   - With token: appended as `&token=<token>`
-   - Optional SGV filter: `find[type][$eq]=sgv`
-2. **Properties:** `GET https://<host>/api/v2/properties/iob,cob,delta,loop,basal`
+URL assembly lives in `lib/ns_url_build/` so the request shape is testable.
 
+1. **SGV:** `GET <base>/api/v1/entries.json?count=1&find[type][$eq]=sgv`
+2. **Delta:** `GET <base>/api/v2/properties/delta`
 
-## HTTPS
+`count=1` because only the newest sgv record is used. The type filter is always
+sent — without it, `count=1` could return an `mbg` or `cal` record.
 
-- Heroku URLs (`herokuapp.com`): use `WiFiClientSecure` with embedded Starfield Services Root CA cert
-- Other HTTPS URLs: use plain `HTTPClient.begin(url)` — no cert verification
-- HTTP 301/302 redirects are followed automatically
+Redirects are followed with `HTTPC_STRICT_FOLLOW_REDIRECTS`. Do not use
+`FORCE`, which has a known CA-bundle bug on cross-host redirects.
 
-## JSON Parsing
+TLS currently uses `setInsecure()`, so certificates are not validated. That is a
+known gap, not a decision to copy elsewhere.
 
-- Single global `DynamicJsonDocument` (16KB) reused for all API calls
-- `ARDUINOJSON_USE_LONG_LONG 1` required (Nightscout timestamps are ms since epoch)
-- Pre-processing before parse: strip control chars <32, fix Unicode escapes, trim oversized date fields
+## Threading
 
-## Web Server (Internal)
+Fetches run on a FreeRTOS task pinned to core 0. `NSinfo` and the error log are
+exchanged with the render loop under `nsMutex`, with the task operating on a
+scratch copy so a slow request never holds the lock.
 
-- Port 80, `WebServer` class
-- Routes: `/` (config UI), `/update` (OTA), `/savecfg`, `/switch`, `/edititem`, `/getedititem`, `/clearconfigflash`
-- mDNS: `<deviceName>.local`
-- Disable via `cfg.disable_web_server = 1`
+Never call `readNightscout()` from `loop()`. Blocking the loop stops touch
+input, the snooze button and alarm checks.
 
-## UDP Snooze Sync
+## Web config
 
-- Port 50555, subnet broadcast
-- Protocol: `"M5_Nightscout SNOOZE: USR=<CRC16 of URL>, SnoozeUntil=<epoch>"`
-- CRC16 of Nightscout URL used as namespace (avoids cross-household conflicts)
-- All M5Stacks watching the same Nightscout instance honor the broadcast snooze
+`WebServer` on port 80, behind HTTP Basic auth when `web_user` and `web_pass`
+are both set. `/test` is POST-only — a GET with side effects is reachable from
+any page via an `<img>` tag.
+
+## OTA
+
+ArduinoOTA, started only when `ota_password` is set. With it unset the port
+stays closed rather than open and unauthenticated.
+
+mDNS comes up as a side effect of `ArduinoOTA.begin()`, so `<device_name>.local`
+only resolves when OTA is enabled.
+
+## Not implemented
+
+The UDP snooze wire format in `lib/ns_pure_logic/` is preserved for upstream
+interop, but no socket is opened and snooze does not sync between devices.

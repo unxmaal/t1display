@@ -1,40 +1,45 @@
 # Rule 07: Alarms and Audio
 
-## Alarm Thresholds (all in mmol/L internally)
+## Alarm Levels
 
-| Alarm | Config field | Default | Sound |
-|-------|-------------|---------|-------|
-| Low alarm | `snd_alarm` | 3.0 | 6x 660Hz beeps, red LEDs |
-| Low warning | `snd_warning` | 3.7 | 3x 3000Hz beeps, amber LEDs |
-| High alarm | `snd_alarm_high` | 20 | Same as low alarm |
-| High warning | `snd_warning_high` | 14 | Same as low warning |
-| No readings | `snd_no_readings` | 20 min | Warning after N minutes without new data |
-| Loop error | `snd_loop_error` | 1 (on) | When loop status contains "Err" |
+Thresholds are always mmol/L. See `rules/04-configuration.md`.
 
-## Audio Hardware Differences
+| Level | Config key | Default | Volume |
+|-------|-----------|---------|--------|
+| Low alarm | `snd_alarm` | 3.0 | `alarm_volume` |
+| Low warning | `snd_warning` | 3.7 | `warning_volume` |
+| High warning | `snd_warning_high` | 14.0 | `warning_volume` |
+| High alarm | `snd_alarm_high` | 20.0 | `alarm_volume` |
+| No readings | `snd_no_readings` | 20 min | `warning_volume` |
 
-| Feature | BASIC/GRAY/FIRE | Core2 |
-|---------|----------------|-------|
-| Method | DAC (`dacWrite`) + `ledcWriteTone` | I2S DMA (`i2s_write`) |
-| Sample rate | 5000 Hz | 11025 Hz |
-| Buffer type | `uint8_t[25000]` | `int16_t[25000]` |
-| Volume control | `alarm_volume`, `warning_volume` (0-100) | Same |
+Level selection is `alarmLevel()` in `lib/ns_pure_logic/`. A reading below
+0.1 mmol/L is a sensor sentinel, not a hypo, and returns `ALARM_LEVEL_NO_READINGS`.
 
-## Snooze
+## Audio
 
-- Button B cycles snooze: 1x → 2x → 3x → 4x `snooze_timeout` minutes (press within 2s to stack)
-- Snooze state broadcast via UDP to other M5Stacks on same LAN
-- Snooze survives soft restart via NVS `SnoozeUntil` key
-- Bottom status bar shows snooze countdown (yellow background)
+Single path: `M5.Speaker` (I2S) on the CoreS3. There is no DAC path, no LED
+strip and no vibration motor in this build.
 
-## LED Strip
+Melodies are sequenced non-blocking by `lib/ns_melody/`. `playMelody()` only
+arms the sequencer; `serviceAlerts()` emits one note per loop iteration as each
+becomes due. Never reintroduce `delay()` here — it makes the snooze button
+unresponsive for the duration of the alarm it is meant to silence.
 
-- `LED_strip_mode`: 0=off, 1=visualize sound, 2=alarms only, 3=always green
-- Pin/count/brightness configurable
-- Core2: forced off (`cfg.LED_strip_mode = 0`)
+Note and duration tables passed to `melodyStart()` must be `static`. The
+sequencer holds pointers to them well after the starting call returns.
 
-## Vibration Motor
+## Scheduling
 
-- `vibration_mode`: 0=off, 1=vibrate during sound
-- PWM on configurable pin (default GPIO 26), 10-bit resolution
-- Core2: forced off
+`lib/ns_alarm_state/` owns repeat and snooze timing, driven by `millis()`.
+Nothing in the alarm path reads the wall clock, so alarms work on a device that
+never synced NTP.
+
+- Repeat interval is `alarm_repeat` minutes since the last fire.
+- Snooze records the severity that was snoozed. A more severe condition breaks
+  through an active snooze; an equal or lesser one does not.
+- Repeat presses stack to `ALARM_SNOOZE_MAX_MULT`, capped at
+  `ALARM_SNOOZE_MAX_SEC`, and the multiplier resets once a snooze expires.
+- Snooze does not survive a reboot. There is no NVS and no UDP sync.
+
+The remaining snooze time is passed into `drawPage()` and rendered in the alarm
+bar. A silenced alarm must always say so on screen.

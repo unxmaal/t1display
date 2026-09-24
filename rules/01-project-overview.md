@@ -17,7 +17,7 @@ Core/Core2 with the Arduino IDE and a single ~2900-line .ino.
 
 Two upstream artifacts are deliberately retained and must not be renamed:
 - the GPL-3.0 LICENSE
-- the UDP snooze wire string in `lib/ns_pure_logic/ns_pure_logic.cpp`
+- the UDP snooze wire string in `lib/ns_pure_logic/ns_pure_logic.cpp` (format only; no socket is opened)
 
 ## License
 
