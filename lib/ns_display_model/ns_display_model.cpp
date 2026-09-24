@@ -91,14 +91,32 @@ void buildGlucoseModel(
     model->arrow_color = model->glucose_color;
 
     /* Sensor staleness */
-    if (now_sec > 0 && sensor_time_sec > 0) {
-        long age_sec = now_sec - sensor_time_sec;
-        int age_min = (int)((age_sec + 30) / 60);
-        if (age_min > SENSOR_AGE_STALE_MIN) {
-            model->show_age = true;
-            snprintf(model->age_str, sizeof(model->age_str), "%d min", age_min);
-            model->age_color = (age_min > SENSOR_AGE_CRITICAL_MIN) ? COLOR_RED : COLOR_WHITE;
-        }
+    int age_min = sensorAgeMinutes(now_sec, sensor_time_sec);
+
+    if (age_min >= SENSOR_AGE_NO_DATA_MIN)
+        model->staleness = STALENESS_NO_DATA;
+    else if (age_min > SENSOR_AGE_STALE_MIN)
+        model->staleness = STALENESS_STALE;
+    else
+        model->staleness = STALENESS_FRESH;
+
+    if (model->staleness != STALENESS_FRESH) {
+        model->show_age = true;
+        snprintf(model->age_str, sizeof(model->age_str), "%d min", age_min);
+        model->age_color = (age_min > SENSOR_AGE_CRITICAL_MIN) ? COLOR_RED : COLOR_WHITE;
+    }
+
+    if (model->staleness == STALENESS_STALE) {
+        model->strike_glucose = true;
+        model->glucose_color  = COLOR_LIGHTGREY;
+        model->arrow_color    = COLOR_LIGHTGREY;
+    } else if (model->staleness == STALENESS_NO_DATA) {
+        strlcpy(model->last_seen_str, model->glucose_str, sizeof(model->last_seen_str));
+        strlcpy(model->glucose_str, "--.-", sizeof(model->glucose_str));
+        model->glucose_color = COLOR_LIGHTGREY;
+        model->arrow_angle   = 180;
+        model->show_banner   = true;
+        snprintf(model->banner_str, sizeof(model->banner_str), "NO DATA %d min", age_min);
     }
 
     /* Battery */

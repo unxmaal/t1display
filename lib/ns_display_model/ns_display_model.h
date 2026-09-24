@@ -16,6 +16,7 @@
 
 /* ── Sensor age thresholds (minutes) ───────────────────────────── */
 
+#define SENSOR_AGE_NO_DATA_MIN   20
 #define SENSOR_AGE_STALE_MIN     5
 #define SENSOR_AGE_CRITICAL_MIN  15
 
@@ -27,6 +28,10 @@
 #define COLOR_RED       3
 #define COLOR_WHITE     4
 #define COLOR_LIGHTGREY 5
+
+#define STALENESS_FRESH   0
+#define STALENESS_STALE   1
+#define STALENESS_NO_DATA 2
 
 /* ── Font hints (maps to actual fonts in the renderer) ─────────── */
 
@@ -55,9 +60,14 @@ struct GlucosePageModel {
     int  arrow_color;         // same as glucose_color
 
     /* Sensor staleness */
+    int  staleness;           // STALENESS_FRESH/STALE/NO_DATA
+    bool strike_glucose;
     bool show_age;
     char age_str[16];
     int  age_color;           // COLOR_WHITE or COLOR_RED
+    bool show_banner;
+    char banner_str[32];
+    char last_seen_str[32];
 
     /* Battery */
     int  battery_pct;         // 0-100, -1 = unknown

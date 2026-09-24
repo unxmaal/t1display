@@ -110,7 +110,7 @@ void test_glucose_model_mgdl_mode(void) {
         7.5f, 135.0f, true,    // show_mgdl = true
         "Flat", 0, "+5",
         12, 0,
-        0, 0,
+        1000, 1000,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NORMAL, 0,
         -1, 0
@@ -143,7 +143,7 @@ void test_glucose_model_double_digit_mmol(void) {
         15.3f, 275.4f, false,
         "DoubleUp", -90, "+2.1",
         12, 0,
-        0, 0,
+        1000, 1000,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_HIGH_ALARM, 0,
         50, 0

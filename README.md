@@ -80,6 +80,20 @@ ssid = Your Network Name
 pass = YourWiFiPassword
 ```
 
+### Staleness
+
+The display has three states, because a stale reading that still looks current is
+the most dangerous thing this device can show.
+
+| State | Age | Appearance |
+|-------|-----|------------|
+| Fresh | up to 5 min | value in range colour |
+| Stale | 5–20 min | value greyed and struck through, age shown |
+| No data | over 20 min, or no clock | value replaced by `--.-`, `NO DATA` banner, last known value labelled below |
+
+A reading whose age cannot be determined — no NTP sync, or no timestamp from the
+server — is treated as no data rather than assumed fresh.
+
 ### Thresholds are always mmol/L
 
 `show_mgdl` controls **display formatting only**. Every threshold — `yellow_*`,
