@@ -10,11 +10,11 @@ This is a mixed-convention codebase. **Match the surrounding code**, don't try t
 
 | Context | Convention | Examples |
 |---------|-----------|----------|
-| Functions | camelCase | `readNightscout()`, `drawMiniGraph()`, `handleAlarmsInfoLine()` |
+| Functions | camelCase | `readNightscout()`, `drawGlucosePage()`, `sensorAgeMinutes()` |
 | Global variables | camelCase | `dispPage`, `lcdBrightness`, `snoozeUntil`, `lastAlarmTime` |
 | Struct fields | snake_case | `cfg.show_mgdl`, `cfg.snd_warning`, `ns.sensSgv`, `ns.sensDir` |
 | Local variables | camelCase | `httpCode`, `sensorDifSec`, `glColor` |
-| Constants/defines | UPPER_SNAKE | `MAX_PAGE`, `UDP_TX_PACKET_MAX_SIZE`, `VIBfreq` |
+| Constants/defines | UPPER_SNAKE | `NUM_PAGES`, `CFG_MAX_WLAN`, `SENSOR_AGE_STALE_MIN` |
 
 **Exception:** Some functions use snake_case (`wifi_connect`, `draw_page`). Don't rename them.
 
@@ -31,7 +31,8 @@ C-style buffers in `lib/`, which must stay free of Arduino types. Arduino `Strin
 
 ## Hardware Conditionals
 
-Use `#ifdef ARDUINO_M5STACK_Core2` for Core2-specific code. The `#else` branch covers BASIC/GRAY/FIRE.
+One board target. The only build conditional is `WOKWI_SIM` for simulator-only
+behaviour.
 
 ## Don't "Improve" Existing Style
 

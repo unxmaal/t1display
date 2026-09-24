@@ -2,9 +2,9 @@
 
 ## Memory
 
-- ESP32 has ~520KB SRAM. Free heap is shown on the error log page (page 3).
-- The 16KB `DynamicJsonDocument` is a significant allocation — it's a global, reused.
-- Audio buffers are large: 25,000 elements (25KB for BASIC, 50KB for Core2 int16_t).
+- ESP32-S3 has ~512KB internal SRAM plus 8MB PSRAM. Free internal heap is shown on the status page.
+- ArduinoJson 7 `JsonDocument` is stack-allocated per parse and sized on demand.
+- The 320x240x16bpp canvas is 153,604 bytes and must live in PSRAM (`setPsram(true)`).
 - Avoid dynamic allocation in loops. Prefer stack or global buffers.
 
 ## Timing
@@ -26,17 +26,15 @@ snooze and restart state live in RAM and reset on power cycle.
 
 ## Power
 
-- BASIC/GRAY/FIRE: `M5.Power.getBatteryLevel()` returns 0-100
-- Core2: `M5.Axp.GetBatVoltage()` mapped to 0/25/50/75/100%
-- Power off (BASIC): `M5.Power.setWakeupButton(BUTTON_A_PIN)` + `M5.Power.powerOFF()`
+- `M5.Power.getBatteryLevel()` returns 0-100
 
 ## Watchdog / Restart
 
 - Scheduled restart via `restart_at_time` config (HH:MM format)
 - Error-triggered restart via `restart_at_logged_errors`
-- Soft restart preserves snooze state through NVS
+- Snooze state is RAM-only and does not survive a restart
 
 ## Build Defines
 
-- `ARDUINOJSON_USE_LONG_LONG 1` — MUST be defined before `#include <ArduinoJson.h>`
-- `ARDUINO_M5STACK_Core2` — defined by the board package, not by us
+- `ARDUINOJSON_USE_LONG_LONG` is already the default on 32-bit targets in ArduinoJson 7; the explicit define is belt and braces
+- `WOKWI_SIM` — set only for simulator builds
