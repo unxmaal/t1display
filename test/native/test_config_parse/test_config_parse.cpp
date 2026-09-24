@@ -518,6 +518,53 @@ void test_unknown_keys_do_not_affect_parsed_count(void) {
     TEST_ASSERT_EQUAL_INT(1, cfg.unknownKeys);
 }
 
+
+/* ── Section isolation ────────────────────────────────────────── */
+
+void test_out_of_range_section_does_not_hijack_previous(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[wlan1]\nssid = HomeNet\npass = secret\n"
+                       "[wlan42]\nssid = EvilAP\npass = pwned\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_STRING("HomeNet", cfg.wlanssid[0]);
+    TEST_ASSERT_EQUAL_STRING("secret", cfg.wlanpass[0]);
+}
+
+void test_unknown_section_does_not_hijack_previous(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[wlan1]\nssid = HomeNet\npass = secret\n"
+                       "[bogus]\nssid = Hijack\npass = h2\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_STRING("HomeNet", cfg.wlanssid[0]);
+    TEST_ASSERT_EQUAL_STRING("secret", cfg.wlanpass[0]);
+}
+
+void test_unterminated_section_does_not_hijack_previous(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[wlan1]\nssid = HomeNet\n[wlan2\nssid = Broken\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_STRING("HomeNet", cfg.wlanssid[0]);
+}
+
+void test_config_section_recovers_after_bad_section(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[bogus]\nname = Ignored\n[config]\nname = Eric\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_STRING("Eric", cfg.userName);
+}
+
+void test_keys_in_bad_section_are_not_counted_unknown(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[bogus]\nwhatever = 1\nmore = 2\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_INT(0, cfg.unknownKeys);
+}
+
 /* ── Main ─────────────────────────────────────────────────────── */
 
 int main(int argc, char **argv) {
@@ -530,6 +577,12 @@ int main(int argc, char **argv) {
     RUN_TEST(test_multiple_unknown_keys_counted);
     RUN_TEST(test_unknown_key_in_wlan_section_counted);
     RUN_TEST(test_unknown_keys_do_not_affect_parsed_count);
+
+    RUN_TEST(test_out_of_range_section_does_not_hijack_previous);
+    RUN_TEST(test_unknown_section_does_not_hijack_previous);
+    RUN_TEST(test_unterminated_section_does_not_hijack_previous);
+    RUN_TEST(test_config_section_recovers_after_bad_section);
+    RUN_TEST(test_keys_in_bad_section_are_not_counted_unknown);
 
     /* Defaults */
     RUN_TEST(test_defaults_device_name);

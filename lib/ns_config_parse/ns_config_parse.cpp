@@ -65,39 +65,140 @@ static bool parseIntIn(const char *val, long lo, long hi, int *out) {
     char *end;
     errno = 0;
     long v = strtol(val, &end, 10);
-    if (end == val || errno == ERANGE || v < lo || v > hi)
+    if (end == val || errno == ERANGE)
         return false;
+    if (v < lo) v = lo;
+    if (v > hi) v = hi;
     *out = (int)v;
     return true;
 }
 
 /* ── Parsing ───────────────────────────────────────────────────── */
 
+#define MMOL_PER_MGDL 18.018f
+
+static bool applyGlucoseKey(ParsedConfig *cfg, const char *key, const char *val,
+                            int mgdl) {
+    float *dst = NULL;
+    if      (strcmp(key, "yellow_low")       == 0) dst = &cfg->yellow_low;
+    else if (strcmp(key, "yellow_high")      == 0) dst = &cfg->yellow_high;
+    else if (strcmp(key, "red_low")          == 0) dst = &cfg->red_low;
+    else if (strcmp(key, "red_high")         == 0) dst = &cfg->red_high;
+    else if (strcmp(key, "snd_alarm")        == 0) dst = &cfg->snd_alarm;
+    else if (strcmp(key, "snd_warning")      == 0) dst = &cfg->snd_warning;
+    else if (strcmp(key, "snd_alarm_high")   == 0) dst = &cfg->snd_alarm_high;
+    else if (strcmp(key, "snd_warning_high") == 0) dst = &cfg->snd_warning_high;
+    if (!dst) return false;
+
+    float lo = mgdl ? CFG_GLUCOSE_MIN * MMOL_PER_MGDL : CFG_GLUCOSE_MIN;
+    float hi = mgdl ? CFG_GLUCOSE_MAX * MMOL_PER_MGDL : CFG_GLUCOSE_MAX;
+    float raw;
+    if (parseFloatIn(val, lo, hi, &raw))
+        *dst = mgdl ? raw / MMOL_PER_MGDL : raw;
+    return true;
+}
+
+static bool applyIntKey(ParsedConfig *cfg, const char *key, const char *val) {
+    struct { const char *name; int *dst; long lo; long hi; } fields[] = {
+        { "time_zone",                &cfg->timeZone,                -43200, 50400 },
+        { "dst",                      &cfg->dst,                          0,  7200 },
+        { "show_mgdl",                &cfg->show_mgdl,                    0,     1 },
+        { "show_current_time",        &cfg->show_current_time,            0,     1 },
+        { "default_page",             &cfg->default_page,                 0,     1 },
+        { "sgv_only",                 &cfg->sgv_only,                     0,     1 },
+        { "info_line",                &cfg->info_line,                    0,     1 },
+        { "date_format",              &cfg->date_format,                  0,     3 },
+        { "time_format",              &cfg->time_format,                  0,     1 },
+        { "snd_no_readings",          &cfg->snd_no_readings,              0,  1440 },
+        { "snooze_timeout",           &cfg->snooze_timeout,               0,  1440 },
+        { "alarm_repeat",             &cfg->alarm_repeat,                 0,  1440 },
+        { "warning_volume",           &cfg->warning_volume,               0,   100 },
+        { "alarm_volume",             &cfg->alarm_volume,                 0,   100 },
+        { "brightness1",              &cfg->brightness1,                  0,   100 },
+        { "brightness2",              &cfg->brightness2,                  0,   100 },
+        { "brightness3",              &cfg->brightness3,                  0,   100 },
+        { "restart_at_logged_errors", &cfg->restart_at_logged_errors,     0,  1000 },
+        { "snd_loop_error",           &cfg->snd_loop_error,               0,     1 },
+    };
+    for (unsigned i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        if (strcmp(key, fields[i].name) == 0) {
+            parseIntIn(val, fields[i].lo, fields[i].hi, fields[i].dst);
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool applyStringKey(ParsedConfig *cfg, const char *key, const char *val) {
+    if (strcmp(key, "nightscout") == 0)
+        strlcpy(cfg->url, val, sizeof(cfg->url));
+    else if (strcmp(key, "token") == 0)
+        strlcpy(cfg->token, val, sizeof(cfg->token));
+    else if (strcmp(key, "name") == 0)
+        strlcpy(cfg->userName, val, sizeof(cfg->userName));
+    else if (strcmp(key, "device_name") == 0)
+        strlcpy(cfg->deviceName, val, sizeof(cfg->deviceName));
+    else if (strcmp(key, "restart_at_time") == 0)
+        strlcpy(cfg->restart_at_time, val, sizeof(cfg->restart_at_time));
+    else
+        return false;
+    return true;
+}
+
+bool applyConfigKey(ParsedConfig *cfg, const char *key, const char *val,
+                    int thresholds_mgdl) {
+    if (applyStringKey(cfg, key, val)) return true;
+    if (applyGlucoseKey(cfg, key, val, thresholds_mgdl)) return true;
+    if (applyIntKey(cfg, key, val)) return true;
+    return false;
+}
+
+static int wlanSlotFromKey(const char *key, bool *isPass) {
+    int idx;
+    if (sscanf(key, "wlan_ssid_%d", &idx) == 1)      *isPass = false;
+    else if (sscanf(key, "wlan_pass_%d", &idx) == 1) *isPass = true;
+    else return -1;
+    idx--;
+    return (idx >= 0 && idx < CFG_MAX_WLAN) ? idx : -1;
+}
+
+void applyConfigForm(ParsedConfig *cfg, const ConfigKV *kv, int count) {
+    int inputUnit = cfg->show_mgdl;
+    for (int i = 0; i < count; i++) {
+        if (!kv[i].key || !kv[i].val) continue;
+        bool isPass;
+        int slot = wlanSlotFromKey(kv[i].key, &isPass);
+        if (slot >= 0) {
+            char *dst = isPass ? cfg->wlanpass[slot] : cfg->wlanssid[slot];
+            strlcpy(dst, kv[i].val, sizeof(cfg->wlanssid[0]));
+            continue;
+        }
+        applyConfigKey(cfg, kv[i].key, kv[i].val, inputUnit);
+    }
+    validateConfig(cfg);
+}
+
 int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
     int parsed = 0;
-    int currentWlan = -1;  // -1 = [config] section, 0-9 = wlan index
+    int currentWlan = -1;
 
     char *p = buf;
     const char *end = buf + len;
 
     while (p < end) {
-        // Find end of line
         char *eol = p;
         while (eol < end && *eol != '\n' && *eol != '\r')
             eol++;
 
-        // Null-terminate this line
         if (eol < end) *eol = '\0';
 
         char *line = trimWhitespace(p);
 
-        // Skip empty lines and comments
         if (line[0] == '\0' || line[0] == ';' || line[0] == '#') {
             p = eol + 1;
             continue;
         }
 
-        // Section header
         if (line[0] == '[') {
             char *close = strchr(line, ']');
             if (close) {
@@ -106,16 +207,18 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
                 if (strcmp(section, "config") == 0) {
                     currentWlan = -1;
                 } else if (strncmp(section, "wlan", 4) == 0) {
-                    int idx = atoi(section + 4) - 1;  // wlan1 → 0
-                    if (idx >= 0 && idx < CFG_MAX_WLAN)
-                        currentWlan = idx;
+                    int idx = atoi(section + 4) - 1;
+                    currentWlan = (idx >= 0 && idx < CFG_MAX_WLAN) ? idx : -2;
+                } else {
+                    currentWlan = -2;
                 }
+            } else {
+                currentWlan = -2;
             }
             p = eol + 1;
             continue;
         }
 
-        // Key = value
         char *eq = strchr(line, '=');
         if (!eq) {
             p = eol + 1;
@@ -126,90 +229,25 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
         const char *key = trimWhitespace(line);
         const char *val = trimWhitespace(eq + 1);
 
-        if (currentWlan >= 0 && currentWlan < CFG_MAX_WLAN) {
-            // WiFi section
+        if (currentWlan == -2) {
+            p = eol + 1;
+            continue;
+        }
+
+        if (currentWlan >= 0) {
             if (strcmp(key, "ssid") == 0) {
-                strlcpy(cfg->wlanssid[currentWlan], val, 64);
+                strlcpy(cfg->wlanssid[currentWlan], val, sizeof(cfg->wlanssid[currentWlan]));
                 parsed++;
             } else if (strcmp(key, "pass") == 0) {
-                strlcpy(cfg->wlanpass[currentWlan], val, 64);
+                strlcpy(cfg->wlanpass[currentWlan], val, sizeof(cfg->wlanpass[currentWlan]));
                 parsed++;
             } else {
                 cfg->unknownKeys++;
             }
+        } else if (applyConfigKey(cfg, key, val, 0)) {
+            parsed++;
         } else {
-            // [config] section
-            if (strcmp(key, "nightscout") == 0) {
-                strlcpy(cfg->url, val, sizeof(cfg->url));
-                parsed++;
-            } else if (strcmp(key, "token") == 0) {
-                strlcpy(cfg->token, val, sizeof(cfg->token));
-                parsed++;
-            } else if (strcmp(key, "name") == 0) {
-                strlcpy(cfg->userName, val, sizeof(cfg->userName));
-                parsed++;
-            } else if (strcmp(key, "device_name") == 0) {
-                strlcpy(cfg->deviceName, val, sizeof(cfg->deviceName));
-                parsed++;
-            } else if (strcmp(key, "time_zone") == 0) {
-                if (parseIntIn(val, -43200, 50400, &cfg->timeZone)) parsed++;
-            } else if (strcmp(key, "dst") == 0) {
-                if (parseIntIn(val, 0, 7200, &cfg->dst)) parsed++;
-            } else if (strcmp(key, "show_mgdl") == 0) {
-                cfg->show_mgdl = atoi(val); parsed++;
-            } else if (strcmp(key, "show_current_time") == 0) {
-                cfg->show_current_time = atoi(val); parsed++;
-            } else if (strcmp(key, "default_page") == 0) {
-                cfg->default_page = atoi(val); parsed++;
-            } else if (strcmp(key, "sgv_only") == 0) {
-                cfg->sgv_only = atoi(val); parsed++;
-            } else if (strcmp(key, "info_line") == 0) {
-                cfg->info_line = atoi(val); parsed++;
-            } else if (strcmp(key, "date_format") == 0) {
-                cfg->date_format = atoi(val); parsed++;
-            } else if (strcmp(key, "time_format") == 0) {
-                if (parseIntIn(val, 0, 1, &cfg->time_format)) parsed++;
-            } else if (strcmp(key, "yellow_low") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->yellow_low)) parsed++;
-            } else if (strcmp(key, "yellow_high") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->yellow_high)) parsed++;
-            } else if (strcmp(key, "red_low") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->red_low)) parsed++;
-            } else if (strcmp(key, "red_high") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->red_high)) parsed++;
-            } else if (strcmp(key, "snd_alarm") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_alarm)) parsed++;
-            } else if (strcmp(key, "snd_warning") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_warning)) parsed++;
-            } else if (strcmp(key, "snd_alarm_high") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_alarm_high)) parsed++;
-            } else if (strcmp(key, "snd_warning_high") == 0) {
-                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_warning_high)) parsed++;
-            } else if (strcmp(key, "snd_no_readings") == 0) {
-                cfg->snd_no_readings = atoi(val); parsed++;
-            } else if (strcmp(key, "snooze_timeout") == 0) {
-                cfg->snooze_timeout = atoi(val); parsed++;
-            } else if (strcmp(key, "alarm_repeat") == 0) {
-                cfg->alarm_repeat = atoi(val); parsed++;
-            } else if (strcmp(key, "warning_volume") == 0) {
-                cfg->warning_volume = atoi(val); parsed++;
-            } else if (strcmp(key, "alarm_volume") == 0) {
-                cfg->alarm_volume = atoi(val); parsed++;
-            } else if (strcmp(key, "brightness1") == 0) {
-                cfg->brightness1 = atoi(val); parsed++;
-            } else if (strcmp(key, "brightness2") == 0) {
-                cfg->brightness2 = atoi(val); parsed++;
-            } else if (strcmp(key, "brightness3") == 0) {
-                cfg->brightness3 = atoi(val); parsed++;
-            } else if (strcmp(key, "restart_at_logged_errors") == 0) {
-                if (parseIntIn(val, 0, 1000, &cfg->restart_at_logged_errors)) parsed++;
-            } else if (strcmp(key, "restart_at_time") == 0) {
-                strlcpy(cfg->restart_at_time, val, sizeof(cfg->restart_at_time)); parsed++;
-            } else if (strcmp(key, "snd_loop_error") == 0) {
-                cfg->snd_loop_error = atoi(val); parsed++;
-            } else {
-                cfg->unknownKeys++;
-            }
+            cfg->unknownKeys++;
         }
 
         p = eol + 1;
