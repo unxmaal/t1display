@@ -50,7 +50,8 @@ int parseSGVResponse(const char *json, size_t len, SGVEntry *entry);
 
 /**
  * Parse a Nightscout /api/v2/properties/delta response.
- * Returns PARSE_OK on success, PARSE_ERR_* on failure.
+ * Returns PARSE_ERR_NO_SGV when the response carries no delta value, so an
+ * absent delta is never reported as a delta of zero.
  */
 int parseDeltaResponse(const char *json, size_t len, DeltaInfo *delta);
 
