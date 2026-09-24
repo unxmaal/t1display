@@ -165,9 +165,12 @@ int alarmLevel(float sgv, float snd_alarm, float snd_warning,
                unsigned int sensor_age_min, unsigned int snd_no_readings,
                bool has_loop_error) {
     /* Priority chain: low alarm > low warn > high alarm > high warn > no readings > loop error */
-    if (sgv <= snd_alarm && sgv >= 0.1f)
+    if (!(sgv >= 0.1f))
+        return ALARM_LEVEL_NO_READINGS;
+
+    if (sgv <= snd_alarm)
         return ALARM_LEVEL_LOW_ALARM;
-    if (sgv <= snd_warning && sgv >= 0.1f)
+    if (sgv <= snd_warning)
         return ALARM_LEVEL_LOW_WARNING;
     if (sgv >= snd_alarm_high)
         return ALARM_LEVEL_HIGH_ALARM;
