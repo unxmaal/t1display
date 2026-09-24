@@ -43,4 +43,5 @@ cores3/.env
 .vscode/
 .idea/
 
-M5NS.ini
+/M5NS.ini
+/M5NS.INI

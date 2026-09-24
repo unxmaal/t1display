@@ -122,3 +122,14 @@ When extracting functions, tighten `char*` params to `const char*` where the fun
 sample users are told to copy cannot drift from what the firmware accepts. It
 locates the file by trying relative paths and then falling back to a path
 derived from `__FILE__`, so it works regardless of the runner's directory.
+### Installing PlatformIO without sudo
+
+This machine has no `pip` or `venv` module, so `pip install platformio` and
+`python3 -m venv` both fail. `uv` is already on PATH:
+
+```bash
+uv tool install platformio
+```
+
+That installs `pio` to `~/.local/bin` with no root access required. Do not
+reach for `sudo apt install pipx` first.
