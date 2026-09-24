@@ -20,12 +20,14 @@ static bool canvasReady = false;
 
 void initCanvas() {
     canvas.setColorDepth(16);
+    canvas.setPsram(true);
     const void *buf = canvas.createSprite(320, 240);
     canvasReady = (buf != nullptr);
     if (!canvasReady)
         Serial.println("[DISPLAY] Canvas alloc failed, using direct draw");
     else
-        Serial.println("[DISPLAY] Canvas allocated (320x240 in PSRAM)");
+        Serial.printf("[DISPLAY] Canvas 320x240, internal free %u\n",
+                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 }
 
 /* ── GFX target: canvas if available, else direct display ────── */
@@ -178,7 +180,25 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
     g.setTextSize(3);
     g.setFont(mapFont(model.glucose_font));
     g.drawString(model.glucose_str, 160, 224);
+    if (model.strike_glucose) {
+        int w = g.textWidth(model.glucose_str) * 3;
+        g.drawFastHLine(160 - w / 2, 180, w, mapColor(model.glucose_color));
+    }
     g.setTextSize(1);
+
+    if (model.show_banner) {
+        g.setTextDatum(TC_DATUM);
+        g.setTextColor(TFT_WHITE, TFT_BLACK);
+        g.setFont(&FreeSansBold18pt7b);
+        g.drawString(model.banner_str, 160, 8);
+        if (model.last_seen_str[0] != '\0') {
+            g.setFont(&FreeSans9pt7b);
+            g.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+            char lastSeen[48];
+            snprintf(lastSeen, sizeof(lastSeen), "last %s", model.last_seen_str);
+            g.drawString(lastSeen, 160, 46);
+        }
+    }
 
     // Trend arrow
     int arrowY = 0;
