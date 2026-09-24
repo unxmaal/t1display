@@ -21,6 +21,7 @@ extern "C" {
 
 #define CFG_MAX_WLAN 10
 
+#define CFG_MAX_LINE 256
 #define CFG_GLUCOSE_MIN 1.0f
 #define CFG_GLUCOSE_MAX 40.0f
 
@@ -98,10 +99,11 @@ void configDefaults(ParsedConfig *cfg);
 
 /**
  * Parse an INI buffer into a ParsedConfig.
- * The buffer is modified in place (lines are split by null terminators).
+ * Reads exactly len bytes and does not require a terminator at buf[len].
+ * Lines longer than CFG_MAX_LINE are truncated.
  * Returns number of config values successfully parsed.
  */
-int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg);
+int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg);
 
 /**
  * Validate and clamp all integer fields to safe ranges.

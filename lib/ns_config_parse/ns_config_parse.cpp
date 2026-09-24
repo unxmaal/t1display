@@ -178,26 +178,31 @@ void applyConfigForm(ParsedConfig *cfg, const ConfigKV *kv, int count) {
     validateConfig(cfg);
 }
 
-int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
+int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg) {
     int parsed = 0;
     int currentWlan = -1;
 
-    char *p = buf;
+    const char *p = buf;
     const char *end = buf + len;
+    char lineBuf[CFG_MAX_LINE];
 
     while (p < end) {
-        char *eol = p;
+        const char *eol = p;
         while (eol < end && *eol != '\n' && *eol != '\r')
             eol++;
 
-        if (eol < end) *eol = '\0';
+        size_t lineLen = (size_t)(eol - p);
+        if (lineLen >= sizeof(lineBuf))
+            lineLen = sizeof(lineBuf) - 1;
+        memcpy(lineBuf, p, lineLen);
+        lineBuf[lineLen] = '\0';
 
-        char *line = trimWhitespace(p);
+        p = (eol < end) ? eol + 1 : end;
 
-        if (line[0] == '\0' || line[0] == ';' || line[0] == '#') {
-            p = eol + 1;
+        char *line = trimWhitespace(lineBuf);
+
+        if (line[0] == '\0' || line[0] == ';' || line[0] == '#')
             continue;
-        }
 
         if (line[0] == '[') {
             char *close = strchr(line, ']');
@@ -215,24 +220,19 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
             } else {
                 currentWlan = -2;
             }
-            p = eol + 1;
             continue;
         }
 
         char *eq = strchr(line, '=');
-        if (!eq) {
-            p = eol + 1;
+        if (!eq)
             continue;
-        }
 
         *eq = '\0';
         const char *key = trimWhitespace(line);
         const char *val = trimWhitespace(eq + 1);
 
-        if (currentWlan == -2) {
-            p = eol + 1;
+        if (currentWlan == -2)
             continue;
-        }
 
         if (currentWlan >= 0) {
             if (strcmp(key, "ssid") == 0) {
@@ -249,8 +249,6 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
         } else {
             cfg->unknownKeys++;
         }
-
-        p = eol + 1;
     }
 
     validateConfig(cfg);
