@@ -257,11 +257,11 @@ void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog)
         codes[i] = nsErrorLogCodeAt(&errLog, i);
         time_t ts = (time_t)nsErrorLogTimeAt(&errLog, i);
         struct tm *et = ts ? localtime(&ts) : NULL;
-        snprintf(dates[i], sizeof(dates[i]), "%02d.%02d.%02d:%02d",
-                 et ? et->tm_mday : 0,
-                 et ? et->tm_mon + 1 : 0,
-                 et ? et->tm_hour : 0,
-                 et ? et->tm_min : 0);
+        int dd = et ? et->tm_mday % 100 : 0;
+        int mo = et ? (et->tm_mon + 1) % 100 : 0;
+        int hh = et ? et->tm_hour % 100 : 0;
+        int mi = et ? et->tm_min % 100 : 0;
+        snprintf(dates[i], sizeof(dates[i]), "%02d.%02d.%02d:%02d", dd, mo, hh, mi);
     }
 
     char ipStr[32];
