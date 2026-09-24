@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <errno.h>
+#include <math.h>
 
 /* ── Defaults ──────────────────────────────────────────────────── */
 
@@ -46,6 +48,27 @@ static char *trimWhitespace(char *s) {
     char *end = s + strlen(s) - 1;
     while (end > s && isspace((unsigned char)*end)) *end-- = '\0';
     return s;
+}
+
+
+static bool parseFloatIn(const char *val, float lo, float hi, float *out) {
+    char *end;
+    errno = 0;
+    double d = strtod(val, &end);
+    if (end == val || errno == ERANGE || !isfinite(d) || d < (double)lo || d > (double)hi)
+        return false;
+    *out = (float)d;
+    return true;
+}
+
+static bool parseIntIn(const char *val, long lo, long hi, int *out) {
+    char *end;
+    errno = 0;
+    long v = strtol(val, &end, 10);
+    if (end == val || errno == ERANGE || v < lo || v > hi)
+        return false;
+    *out = (int)v;
+    return true;
 }
 
 /* ── Parsing ───────────────────────────────────────────────────── */
@@ -129,9 +152,9 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
                 strlcpy(cfg->deviceName, val, sizeof(cfg->deviceName));
                 parsed++;
             } else if (strcmp(key, "time_zone") == 0) {
-                cfg->timeZone = atoi(val); parsed++;
+                if (parseIntIn(val, -43200, 50400, &cfg->timeZone)) parsed++;
             } else if (strcmp(key, "dst") == 0) {
-                cfg->dst = atoi(val); parsed++;
+                if (parseIntIn(val, 0, 7200, &cfg->dst)) parsed++;
             } else if (strcmp(key, "show_mgdl") == 0) {
                 cfg->show_mgdl = atoi(val); parsed++;
             } else if (strcmp(key, "show_current_time") == 0) {
@@ -145,23 +168,23 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
             } else if (strcmp(key, "date_format") == 0) {
                 cfg->date_format = atoi(val); parsed++;
             } else if (strcmp(key, "time_format") == 0) {
-                cfg->time_format = atoi(val); parsed++;
+                if (parseIntIn(val, 0, 1, &cfg->time_format)) parsed++;
             } else if (strcmp(key, "yellow_low") == 0) {
-                cfg->yellow_low = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->yellow_low)) parsed++;
             } else if (strcmp(key, "yellow_high") == 0) {
-                cfg->yellow_high = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->yellow_high)) parsed++;
             } else if (strcmp(key, "red_low") == 0) {
-                cfg->red_low = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->red_low)) parsed++;
             } else if (strcmp(key, "red_high") == 0) {
-                cfg->red_high = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->red_high)) parsed++;
             } else if (strcmp(key, "snd_alarm") == 0) {
-                cfg->snd_alarm = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_alarm)) parsed++;
             } else if (strcmp(key, "snd_warning") == 0) {
-                cfg->snd_warning = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_warning)) parsed++;
             } else if (strcmp(key, "snd_alarm_high") == 0) {
-                cfg->snd_alarm_high = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_alarm_high)) parsed++;
             } else if (strcmp(key, "snd_warning_high") == 0) {
-                cfg->snd_warning_high = (float)atof(val); parsed++;
+                if (parseFloatIn(val, CFG_GLUCOSE_MIN, CFG_GLUCOSE_MAX, &cfg->snd_warning_high)) parsed++;
             } else if (strcmp(key, "snd_no_readings") == 0) {
                 cfg->snd_no_readings = atoi(val); parsed++;
             } else if (strcmp(key, "snooze_timeout") == 0) {
@@ -179,7 +202,7 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
             } else if (strcmp(key, "brightness3") == 0) {
                 cfg->brightness3 = atoi(val); parsed++;
             } else if (strcmp(key, "restart_at_logged_errors") == 0) {
-                cfg->restart_at_logged_errors = atoi(val); parsed++;
+                if (parseIntIn(val, 0, 1000, &cfg->restart_at_logged_errors)) parsed++;
             } else if (strcmp(key, "restart_at_time") == 0) {
                 strlcpy(cfg->restart_at_time, val, sizeof(cfg->restart_at_time)); parsed++;
             } else if (strcmp(key, "snd_loop_error") == 0) {
@@ -196,9 +219,28 @@ int parseConfigBuffer(char *buf, size_t len, ParsedConfig *cfg) {
     return parsed;
 }
 
+static void clampGlucose(float *v, float fallback) {
+    if (!isfinite(*v) || *v < CFG_GLUCOSE_MIN || *v > CFG_GLUCOSE_MAX)
+        *v = fallback;
+}
+
 /* ── Validation ────────────────────────────────────────────────── */
 
 void validateConfig(ParsedConfig *cfg) {
+    clampGlucose(&cfg->yellow_low,       4.5f);
+    clampGlucose(&cfg->yellow_high,      9.0f);
+    clampGlucose(&cfg->red_low,          3.9f);
+    clampGlucose(&cfg->red_high,        11.0f);
+    clampGlucose(&cfg->snd_alarm,        3.0f);
+    clampGlucose(&cfg->snd_warning,      3.7f);
+    clampGlucose(&cfg->snd_alarm_high,  20.0f);
+    clampGlucose(&cfg->snd_warning_high,14.0f);
+
+    cfg->timeZone = clampInt(cfg->timeZone, -43200, 50400);
+    cfg->dst      = clampInt(cfg->dst, 0, 7200);
+    cfg->time_format = clampInt(cfg->time_format, 0, 1);
+    cfg->restart_at_logged_errors = clampInt(cfg->restart_at_logged_errors, 0, 1000);
+
     cfg->show_mgdl         = clampInt(cfg->show_mgdl, 0, 1);
     cfg->show_current_time = clampInt(cfg->show_current_time, 0, 1);
     cfg->sgv_only          = clampInt(cfg->sgv_only, 0, 1);

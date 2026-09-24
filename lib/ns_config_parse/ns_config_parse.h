@@ -21,6 +21,9 @@ extern "C" {
 
 #define CFG_MAX_WLAN 10
 
+#define CFG_GLUCOSE_MIN 1.0f
+#define CFG_GLUCOSE_MAX 40.0f
+
 struct ParsedConfig {
     char url[128];
     char token[64];
