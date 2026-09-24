@@ -17,6 +17,11 @@
 #include "webconfig.h"
 #include "ns_config_parse.h"
 #include "ns_pure_logic.h"
+#include "ns_restart_schedule.h"
+
+#include <esp_task_wdt.h>
+
+#define WDT_TIMEOUT_SEC 30
 
 /* ── Globals ───────────────────────────────────────────────────── */
 
@@ -24,6 +29,7 @@ static Config     cfg;
 static NSinfo     ns;
 static ErrorLog   errLog;
 static AlarmState alarmState;
+static RestartSchedule restartSched;
 
 static WiFiMulti  wifiMulti;
 
@@ -161,10 +167,17 @@ static void pollNightscout() {
 
 /* ── Setup ─────────────────────────────────────────────────────── */
 
+static void setupWatchdog() {
+    esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+    esp_task_wdt_add(NULL);
+}
+
 void setup() {
     auto m5cfg = M5.config();
     M5.begin(m5cfg);
     M5.setTouchButtonHeight(40);
+    restartScheduleInit(&restartSched);
+    nsErrorLogInit(&errLog);
 
     Serial.begin(115200);
     Serial.println("[BOOT] M5Unified initialized");
@@ -233,7 +246,7 @@ void setup() {
     // Initial fetch (will fail without WiFi — that's OK)
     Serial.println("[NS] Initial Nightscout fetch...");
     int nsRc = readNightscout(cfg, ns, errLog);
-    Serial.printf("[NS] Result: %d, errors logged: %d\n", nsRc, errLog.count);
+    Serial.printf("[NS] Result: %d, errors logged: %lu\n", nsRc, errLog.total);
 
     Serial.println("[DISPLAY] Drawing initial page...");
     Serial.flush();
@@ -241,6 +254,7 @@ void setup() {
     Serial.printf("[DISPLAY] Page %d drawn (glucose=%.1f mmol, dir=%s)\n",
                   currentPage, ns.sensSgv, ns.sensDir);
     Serial.flush();
+    setupWatchdog();
     Serial.println("[BOOT] Setup complete, entering loop");
     Serial.flush();
 }
@@ -280,11 +294,16 @@ void loop() {
     // Check alarms
     checkAlarms(cfg, ns, alarmState);
 
-    // Auto-restart on too many errors
-    if (cfg.restart_at_logged_errors > 0 &&
-        errLog.count >= cfg.restart_at_logged_errors) {
+    if (nsErrorLogShouldRestart(&errLog, cfg.restart_at_logged_errors))
         ESP.restart();
-    }
+
+    struct tm nowTm;
+    if (getLocalTime(&nowTm, 10) &&
+        restartScheduleDue(&restartSched, cfg.restart_at_time,
+                           nowTm.tm_hour, nowTm.tm_min))
+        ESP.restart();
+
+    esp_task_wdt_reset();
 
     delay(100);
 }

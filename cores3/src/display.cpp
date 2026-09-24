@@ -154,7 +154,7 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
         now_sec, (long)ns.sensTime,
         cfg.yellow_low, cfg.yellow_high, cfg.red_low, cfg.red_high,
         level, snoozeRemainingSec,
-        batteryPct, errLog.count);
+        batteryPct, nsErrorLogHasActiveFault(&errLog) ? 1 : 0);
 
     // ── Render from model ─────────────────────────────────────────
 
@@ -229,17 +229,19 @@ void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog)
     // Prepare error data for the model
     int codes[STATUS_MAX_ERRORS];
     char dates[STATUS_MAX_ERRORS][16];
-    int displayCount = errLog.ptr;
+    int displayCount = nsErrorLogHeld(&errLog);
     if (displayCount > STATUS_MAX_ERRORS)
         displayCount = STATUS_MAX_ERRORS;
 
     for (int i = 0; i < displayCount; i++) {
-        codes[i] = errLog.entries[i].err_code;
+        codes[i] = nsErrorLogCodeAt(&errLog, i);
+        time_t ts = (time_t)nsErrorLogTimeAt(&errLog, i);
+        struct tm *et = ts ? localtime(&ts) : NULL;
         snprintf(dates[i], sizeof(dates[i]), "%02d.%02d.%02d:%02d",
-                 errLog.entries[i].err_time.tm_mday,
-                 errLog.entries[i].err_time.tm_mon + 1,
-                 errLog.entries[i].err_time.tm_hour,
-                 errLog.entries[i].err_time.tm_min);
+                 et ? et->tm_mday : 0,
+                 et ? et->tm_mon + 1 : 0,
+                 et ? et->tm_hour : 0,
+                 et ? et->tm_min : 0);
     }
 
     char ipStr[32];
@@ -248,7 +250,7 @@ void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog)
 
     StatusPageModel model;
     buildStatusModel(&model,
-        codes, dates, displayCount, errLog.count,
+        codes, dates, displayCount, (int)errLog.total,
         ESP.getFreeHeap(), millis(),
         ipStr, "CoreS3",
         M5.Power.getBatteryLevel());
