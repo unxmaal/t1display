@@ -59,10 +59,6 @@ static float toDisplay(float mmol, bool mgdl) {
     return mgdl ? mmol * MMOL_TO_MGDL : mmol;
 }
 
-static float fromDisplay(float val, bool mgdl) {
-    return mgdl ? val / MMOL_TO_MGDL : val;
-}
-
 /* ── GET / — serve config form ─────────────────────────────────── */
 
 static void handleRoot() {
@@ -156,7 +152,7 @@ static void handleRoot() {
 
     // WiFi
     html += "<h2>WiFi Networks</h2>";
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < CFG_MAX_WLAN; i++) {
         String idx = String(i + 1);
         html += "<h3>WiFi " + idx + "</h3>";
         html += textInput(("SSID " + idx).c_str(), ("wlan_ssid_" + idx).c_str(), c.wlanssid[i], 63);
@@ -179,59 +175,20 @@ static void handleRoot() {
 static void handleSave() {
     Config &c = *cfgPtr;
 
-    // Read form values into config struct
-    if (server.hasArg("nightscout"))  strlcpy(c.url, server.arg("nightscout").c_str(), sizeof(c.url));
-    if (server.hasArg("token"))       strlcpy(c.token, server.arg("token").c_str(), sizeof(c.token));
-    if (server.hasArg("name"))        strlcpy(c.userName, server.arg("name").c_str(), sizeof(c.userName));
-    if (server.hasArg("device_name")) strlcpy(c.deviceName, server.arg("device_name").c_str(), sizeof(c.deviceName));
+    int n = server.args();
+    if (n > 128) n = 128;
 
-    if (server.hasArg("time_zone"))   c.timeZone = server.arg("time_zone").toInt();
-    if (server.hasArg("dst"))         c.dst = server.arg("dst").toInt();
-
-    if (server.hasArg("show_mgdl"))          c.show_mgdl = server.arg("show_mgdl").toInt();
-    if (server.hasArg("show_current_time"))  c.show_current_time = server.arg("show_current_time").toInt();
-    if (server.hasArg("default_page"))       c.default_page = server.arg("default_page").toInt();
-    if (server.hasArg("sgv_only"))           c.sgv_only = server.arg("sgv_only").toInt();
-    if (server.hasArg("info_line"))          c.info_line = server.arg("info_line").toInt();
-    if (server.hasArg("date_format"))        c.date_format = server.arg("date_format").toInt();
-    if (server.hasArg("time_format"))        c.time_format = server.arg("time_format").toInt();
-
-    // Convert display units back to mmol/L for storage
-    bool mg = c.show_mgdl;
-    if (server.hasArg("yellow_low"))   c.yellow_low = fromDisplay(server.arg("yellow_low").toFloat(), mg);
-    if (server.hasArg("yellow_high"))  c.yellow_high = fromDisplay(server.arg("yellow_high").toFloat(), mg);
-    if (server.hasArg("red_low"))      c.red_low = fromDisplay(server.arg("red_low").toFloat(), mg);
-    if (server.hasArg("red_high"))     c.red_high = fromDisplay(server.arg("red_high").toFloat(), mg);
-
-    if (server.hasArg("snd_alarm"))         c.snd_alarm = fromDisplay(server.arg("snd_alarm").toFloat(), mg);
-    if (server.hasArg("snd_warning"))       c.snd_warning = fromDisplay(server.arg("snd_warning").toFloat(), mg);
-    if (server.hasArg("snd_alarm_high"))    c.snd_alarm_high = fromDisplay(server.arg("snd_alarm_high").toFloat(), mg);
-    if (server.hasArg("snd_warning_high"))  c.snd_warning_high = fromDisplay(server.arg("snd_warning_high").toFloat(), mg);
-    if (server.hasArg("snd_no_readings"))   c.snd_no_readings = server.arg("snd_no_readings").toInt();
-
-    if (server.hasArg("snooze_timeout"))  c.snooze_timeout = server.arg("snooze_timeout").toInt();
-    if (server.hasArg("alarm_repeat"))    c.alarm_repeat = server.arg("alarm_repeat").toInt();
-    if (server.hasArg("warning_volume"))  c.warning_volume = server.arg("warning_volume").toInt();
-    if (server.hasArg("alarm_volume"))    c.alarm_volume = server.arg("alarm_volume").toInt();
-    if (server.hasArg("snd_loop_error"))  c.snd_loop_error = server.arg("snd_loop_error").toInt();
-
-    if (server.hasArg("brightness1"))  c.brightness1 = server.arg("brightness1").toInt();
-    if (server.hasArg("brightness2"))  c.brightness2 = server.arg("brightness2").toInt();
-    if (server.hasArg("brightness3"))  c.brightness3 = server.arg("brightness3").toInt();
-
-    if (server.hasArg("restart_at_logged_errors"))
-        c.restart_at_logged_errors = server.arg("restart_at_logged_errors").toInt();
-    if (server.hasArg("restart_at_time"))
-        strlcpy(c.restart_at_time, server.arg("restart_at_time").c_str(), sizeof(c.restart_at_time));
-
-    // WiFi slots
-    for (int i = 0; i < 3; i++) {
-        String idx = String(i + 1);
-        String ssidKey = "wlan_ssid_" + idx;
-        String passKey = "wlan_pass_" + idx;
-        if (server.hasArg(ssidKey))  strlcpy(c.wlanssid[i], server.arg(ssidKey).c_str(), 64);
-        if (server.hasArg(passKey))  strlcpy(c.wlanpass[i], server.arg(passKey).c_str(), 64);
+    static String keys[128];
+    static String vals[128];
+    ConfigKV kv[128];
+    for (int i = 0; i < n; i++) {
+        keys[i] = server.argName(i);
+        vals[i] = server.arg(i);
+        kv[i].key = keys[i].c_str();
+        kv[i].val = vals[i].c_str();
     }
+
+    applyConfigForm(&c, kv, n);
 
     // Serialize to INI and write to SD
     char ini[4096];

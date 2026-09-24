@@ -72,6 +72,25 @@ struct ParsedConfig {
     char wlanpass[CFG_MAX_WLAN][64];
 };
 
+struct ConfigKV {
+    const char *key;
+    const char *val;
+};
+
+/**
+ * Apply one key/value pair. thresholds_mgdl states the unit the incoming
+ * threshold values are expressed in. Returns true if the key was recognized.
+ */
+bool applyConfigKey(ParsedConfig *cfg, const char *key, const char *val,
+                    int thresholds_mgdl);
+
+/**
+ * Apply a whole form submission. Threshold values are interpreted in the
+ * unit the config was in before the call, so a show_mgdl change in the same
+ * submission does not rescale them. Validates when done.
+ */
+void applyConfigForm(ParsedConfig *cfg, const ConfigKV *kv, int count);
+
 /**
  * Initialize a ParsedConfig with default values.
  */
