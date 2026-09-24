@@ -28,6 +28,10 @@
 static Config     cfg;
 static NSinfo     ns;
 static ErrorLog   errLog;
+
+static SemaphoreHandle_t nsMutex   = nullptr;
+static TaskHandle_t      nsTaskH   = nullptr;
+static volatile bool     nsFetchRequested = false;
 static AlarmState alarmState;
 static RestartSchedule restartSched;
 
@@ -149,22 +153,58 @@ static void cycleBrightness() {
 
 /* ── Nightscout polling ────────────────────────────────────────── */
 
+static void nsTask(void *) {
+    esp_task_wdt_add(NULL);
+    for (;;) {
+        if (nsFetchRequested) {
+            NSinfo   scratch;
+            ErrorLog scratchLog;
+
+            xSemaphoreTake(nsMutex, portMAX_DELAY);
+            scratch    = ns;
+            scratchLog = errLog;
+            xSemaphoreGive(nsMutex);
+
+            readNightscout(cfg, scratch, scratchLog);
+
+            xSemaphoreTake(nsMutex, portMAX_DELAY);
+            ns     = scratch;
+            errLog = scratchLog;
+            xSemaphoreGive(nsMutex);
+
+            nsFetchRequested = false;
+        }
+        esp_task_wdt_reset();
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
 static void pollNightscout() {
     if (millis() - lastNsCheck < 15000)
         return;
     lastNsCheck = millis();
 
-    // Only poll if data is stale (>5 min) and we've waited a few cycles
     struct tm now;
     long now_sec = getLocalTime(&now, 10) ? (long)mktime(&now) : 0;
-    int sensorAgeMin = sensorAgeMinutes(now_sec, (long)ns.sensTime);
 
-    if (sensorAgeMin >= 5) {
-        readNightscout(cfg, ns, errLog);
-    }
+    xSemaphoreTake(nsMutex, portMAX_DELAY);
+    time_t sensTime = ns.sensTime;
+    xSemaphoreGive(nsMutex);
 
-    drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
+    if (sensorAgeMinutes(now_sec, (long)sensTime) >= 5)
+        nsFetchRequested = true;
 }
+
+static void redraw() {
+    xSemaphoreTake(nsMutex, portMAX_DELAY);
+    NSinfo   snapNs  = ns;
+    ErrorLog snapLog = errLog;
+    xSemaphoreGive(nsMutex);
+
+    drawPage(currentPage, cfg, snapNs, snapLog,
+             (int)alarmState.snoozeRemaining(millis()));
+}
+
 
 /* ── Setup ─────────────────────────────────────────────────────── */
 
@@ -174,6 +214,7 @@ static void setupWatchdog() {
 }
 
 void setup() {
+    nsMutex = xSemaphoreCreateMutex();
     auto m5cfg = M5.config();
     M5.begin(m5cfg);
     M5.setTouchButtonHeight(40);
@@ -251,11 +292,14 @@ void setup() {
 
     Serial.println("[DISPLAY] Drawing initial page...");
     Serial.flush();
-    drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
+    redraw();
     Serial.printf("[DISPLAY] Page %d drawn (glucose=%.1f mmol, dir=%s)\n",
                   currentPage, ns.sensSgv, ns.sensDir);
     Serial.flush();
     setupWatchdog();
+
+    xTaskCreatePinnedToCore(nsTask, "ns", 8192, nullptr, 1, &nsTaskH, 0);
+
     Serial.println("[BOOT] Setup complete, entering loop");
     Serial.flush();
 }
@@ -278,22 +322,30 @@ void loop() {
     // Button B (middle): snooze
     if (M5.BtnB.wasPressed()) {
         Serial.println("[BTN] B pressed");
-        alarmState.snooze(millis(), currentAlarmLevel(cfg, ns), cfg.snooze_timeout);
-        drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
+        xSemaphoreTake(nsMutex, portMAX_DELAY);
+        NSinfo snoozeSnap = ns;
+        xSemaphoreGive(nsMutex);
+        alarmState.snooze(millis(), currentAlarmLevel(cfg, snoozeSnap), cfg.snooze_timeout);
+        redraw();
     }
 
     // Button C (right): toggle page
     if (M5.BtnC.wasPressed()) {
         Serial.println("[BTN] C pressed");
         currentPage = (currentPage + 1) % NUM_PAGES;
-        drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
+        redraw();
     }
 
     // Poll Nightscout + redraw
     pollNightscout();
+    redraw();
 
     // Check alarms
-    checkAlarms(cfg, ns, alarmState);
+    xSemaphoreTake(nsMutex, portMAX_DELAY);
+    NSinfo alarmSnap = ns;
+    xSemaphoreGive(nsMutex);
+    checkAlarms(cfg, alarmSnap, alarmState);
+    serviceAlerts();
 
     if (nsErrorLogShouldRestart(&errLog, cfg.restart_at_logged_errors))
         ESP.restart();
