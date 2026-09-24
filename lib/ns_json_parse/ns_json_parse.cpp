@@ -78,36 +78,6 @@ int parseSGVResponse(const char *json, size_t len, SGVEntry *entry) {
     return PARSE_OK;
 }
 
-/* ── Sugarmate response ────────────────────────────────────────── */
-
-int parseSugarmateResponse(const char *json, size_t len, SGVEntry *entry,
-                           DeltaInfo *delta) {
-    if (!json || !entry || !delta)
-        return PARSE_ERR_JSON;
-
-    JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, json, len);
-    if (err)
-        return PARSE_ERR_JSON;
-
-    strlcpy(entry->device, "Sugarmate", sizeof(entry->device));
-
-    entry->sgv_mgdl = doc["value"].as<float>();
-    entry->sgv_mmol = entry->sgv_mgdl / 18.0f;
-
-    entry->date_ms  = doc["x"].as<long long>();
-    entry->date_sec = entry->date_ms / 1000;
-
-    const char *dir = doc["trend_words"] | "NONE";
-    strlcpy(entry->direction, dir, sizeof(entry->direction));
-    entry->arrow_angle = directionToAngle(entry->direction);
-
-    delta->mgdl = doc["delta"].as<int>();
-    delta->mmol = delta->mgdl / 18.0f;
-
-    return PARSE_OK;
-}
-
 /* ── Delta/properties response ─────────────────────────────────── */
 
 int parseDeltaResponse(const char *json, size_t len, DeltaInfo *delta) {

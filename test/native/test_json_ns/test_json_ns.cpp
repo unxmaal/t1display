@@ -37,11 +37,6 @@ static const char *NS_RESPONSE_NUMERIC_TREND = R"([
 // Empty array
 static const char *NS_RESPONSE_EMPTY = "[]";
 
-// Sugarmate response (single object, not array)
-static const char *SUGARMATE_RESPONSE = R"({
-  "value":142,"trend_words":"Flat","x":1709312400000,
-  "delta":-3,"units":"mg/dL"
-})";
 
 // Nightscout /api/v2/properties/delta response
 static const char *DELTA_RESPONSE = R"({
@@ -144,25 +139,6 @@ void test_parse_sgv_mmol_conversion(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 8.44f, entry.sgv_mmol);
 }
 
-/* ── parseSugarmateResponse tests ──────────────────────────────── */
-
-void test_parse_sugarmate(void) {
-    SGVEntry entry;
-    DeltaInfo delta;
-    memset(&entry, 0, sizeof(entry));
-    memset(&delta, 0, sizeof(delta));
-    int rc = parseSugarmateResponse(SUGARMATE_RESPONSE, strlen(SUGARMATE_RESPONSE),
-                                    &entry, &delta);
-    TEST_ASSERT_EQUAL_INT(PARSE_OK, rc);
-    TEST_ASSERT_EQUAL_STRING("Sugarmate", entry.device);
-    TEST_ASSERT_EQUAL_FLOAT(142.0f, entry.sgv_mgdl);
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 142.0f / 18.0f, entry.sgv_mmol);
-    TEST_ASSERT_EQUAL_STRING("Flat", entry.direction);
-    TEST_ASSERT_EQUAL_INT(0, entry.arrow_angle);
-    TEST_ASSERT_EQUAL_INT(-3, delta.mgdl);
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, -3.0f / 18.0f, delta.mmol);
-}
-
 /* ── parseDeltaResponse tests ──────────────────────────────────── */
 
 void test_parse_delta(void) {
@@ -232,8 +208,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_parse_sgv_low_glucose);
     RUN_TEST(test_parse_sgv_mmol_conversion);
 
-    // Sugarmate
-    RUN_TEST(test_parse_sugarmate);
 
     // Delta
     RUN_TEST(test_parse_delta);

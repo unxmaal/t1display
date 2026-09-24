@@ -49,13 +49,6 @@ struct DeltaInfo {
 int parseSGVResponse(const char *json, size_t len, SGVEntry *entry);
 
 /**
- * Parse a Sugarmate API response (single object, not array).
- * Returns PARSE_OK on success, PARSE_ERR_* on failure.
- */
-int parseSugarmateResponse(const char *json, size_t len, SGVEntry *entry,
-                           DeltaInfo *delta);
-
-/**
  * Parse a Nightscout /api/v2/properties/delta response.
  * Returns PARSE_OK on success, PARSE_ERR_* on failure.
  */
