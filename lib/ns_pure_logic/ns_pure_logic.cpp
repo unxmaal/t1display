@@ -146,6 +146,18 @@ size_t sanitizeJson(char* buf, size_t len) {
     return len;
 }
 
+/* ── Sensor age ────────────────────────────────────────────────── */
+
+int sensorAgeMinutes(long now_sec, long sensor_sec) {
+    if (now_sec <= 0 || sensor_sec <= 0)
+        return SENSOR_AGE_UNKNOWN;
+    long age_sec = now_sec - sensor_sec;
+    if (age_sec < 0)
+        return 0;
+    long mins = (age_sec + 30) / 60;
+    return (mins > SENSOR_AGE_UNKNOWN) ? SENSOR_AGE_UNKNOWN : (int)mins;
+}
+
 /* ── Glucose color level ───────────────────────────────────────── */
 
 int glucoseColor(float sgv, float yellow_low, float yellow_high,

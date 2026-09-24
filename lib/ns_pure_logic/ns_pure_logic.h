@@ -88,6 +88,17 @@ bool parseIPAddress(const char* str, uint8_t ip[4]);
  */
 bool parseMACAddress(const char* str, uint8_t mac[6]);
 
+/* ── Sensor age ────────────────────────────────────────────────── */
+
+#define SENSOR_AGE_UNKNOWN 1440
+
+/**
+ * Minutes between a reading's timestamp and now, rounded to nearest.
+ * Returns SENSOR_AGE_UNKNOWN when either timestamp is unavailable, and 0
+ * for a future-dated reading rather than a negative or wrapped value.
+ */
+int sensorAgeMinutes(long now_sec, long sensor_sec);
+
 /* ── Glucose color level ───────────────────────────────────────── */
 
 #define GLUCOSE_COLOR_GREEN  0

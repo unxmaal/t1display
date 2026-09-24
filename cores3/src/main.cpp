@@ -16,6 +16,7 @@
 #include "ota.h"
 #include "webconfig.h"
 #include "ns_config_parse.h"
+#include "ns_pure_logic.h"
 
 /* ── Globals ───────────────────────────────────────────────────── */
 
@@ -30,7 +31,6 @@ static int  currentPage       = PAGE_GLUCOSE;
 static int  brightnessLevel   = 0;
 static int  brightnessValues[3];
 static unsigned long lastNsCheck = 0;
-static int  pollCount         = 0;
 
 static const char *ntpServer = "pool.ntp.org";
 
@@ -149,15 +149,12 @@ static void pollNightscout() {
 
     // Only poll if data is stale (>5 min) and we've waited a few cycles
     struct tm now;
-    int sensorAgeSec = 86400;
-    if (getLocalTime(&now, 10))
-        sensorAgeSec = (int)difftime(mktime(&now), ns.sensTime);
+    long now_sec = getLocalTime(&now, 10) ? (long)mktime(&now) : 0;
+    int sensorAgeMin = sensorAgeMinutes(now_sec, (long)ns.sensTime);
 
-    if (sensorAgeSec > 305 && pollCount > 3) {
-        pollCount = 0;
+    if (sensorAgeMin >= 5) {
         readNightscout(cfg, ns, errLog);
     }
-    pollCount++;
 
     drawPage(currentPage, cfg, ns, errLog, (int)alarmState.snoozeRemaining(millis()));
 }
@@ -167,6 +164,7 @@ static void pollNightscout() {
 void setup() {
     auto m5cfg = M5.config();
     M5.begin(m5cfg);
+    M5.setTouchButtonHeight(40);
 
     Serial.begin(115200);
     Serial.println("[BOOT] M5Unified initialized");
@@ -252,18 +250,6 @@ void setup() {
 void loop() {
     M5.update();
 
-    // CoreS3 touch → virtual button mapping (touch panel covers display only)
-    auto t = M5.Touch.getDetail();
-    if (t.isPressed() && t.y >= 200) {
-        int zone = t.x / 107;  // 0=left, 1=mid, 2=right (320/3)
-        M5.BtnA.setRawState(t.wasPressed() ? 0 : 0, zone == 0);
-        M5.BtnB.setRawState(t.wasPressed() ? 0 : 0, zone == 1);
-        M5.BtnC.setRawState(t.wasPressed() ? 0 : 0, zone == 2);
-    } else if (t.wasReleased()) {
-        M5.BtnA.setRawState(0, false);
-        M5.BtnB.setRawState(0, false);
-        M5.BtnC.setRawState(0, false);
-    }
 
     handleOTA();
     handleWebConfig();

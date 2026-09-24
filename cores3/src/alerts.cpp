@@ -78,15 +78,12 @@ void playNoReadings(int volume) {
 
 int currentAlarmLevel(const Config &cfg, const NSinfo &ns) {
     struct tm now;
-    unsigned int sensorAgeMin = 999;
-    if (getLocalTime(&now, 10)) {
-        int ageSec = (int)difftime(mktime(&now), ns.sensTime);
-        sensorAgeMin = (ageSec < 0) ? 0 : (unsigned int)((ageSec + 30) / 60);
-    }
+    long now_sec = getLocalTime(&now, 10) ? (long)mktime(&now) : 0;
+    int sensorAgeMin = sensorAgeMinutes(now_sec, (long)ns.sensTime);
 
     return alarmLevel(ns.sensSgv, cfg.snd_alarm, cfg.snd_warning,
                       cfg.snd_alarm_high, cfg.snd_warning_high,
-                      sensorAgeMin, cfg.snd_no_readings, false);
+                      (unsigned int)sensorAgeMin, cfg.snd_no_readings, false);
 }
 
 void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
