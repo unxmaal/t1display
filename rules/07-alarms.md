@@ -12,8 +12,10 @@ Thresholds are always mmol/L. See `rules/04-configuration.md`.
 | High alarm | `snd_alarm_high` | 20.0 | `alarm_volume` |
 | No readings | `snd_no_readings` | 20 min | `warning_volume` |
 
-Level selection is `alarmLevel()` in `lib/ns_pure_logic/`. A reading below
-0.1 mmol/L is a sensor sentinel, not a hypo, and returns `ALARM_LEVEL_NO_READINGS`.
+Level selection is `alarmLevel()` in `lib/ns_pure_logic/`. An sgv below
+`SGV_MIN_VALID_MGDL` (39 mg/dL) is a CGM error code, not a hypo, and returns
+`ALARM_LEVEL_NO_READINGS`. 39 itself is Dexcom's LOW and must alarm. All unit
+conversion uses `MGDL_PER_MMOL`.
 
 ## Audio
 

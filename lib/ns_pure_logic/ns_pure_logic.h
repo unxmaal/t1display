@@ -91,13 +91,26 @@ bool parseMACAddress(const char* str, uint8_t mac[6]);
 /* ── Sensor age ────────────────────────────────────────────────── */
 
 #define SENSOR_AGE_UNKNOWN 1440
+#define SENSOR_FUTURE_TOLERANCE_SEC 120
 
 /**
  * Minutes between a reading's timestamp and now, rounded to nearest.
- * Returns SENSOR_AGE_UNKNOWN when either timestamp is unavailable, and 0
- * for a future-dated reading rather than a negative or wrapped value.
+ * Returns SENSOR_AGE_UNKNOWN when either timestamp is unavailable or the
+ * reading is dated more than SENSOR_FUTURE_TOLERANCE_SEC ahead, and 0 for
+ * smaller future skew.
  */
 int sensorAgeMinutes(long now_sec, long sensor_sec);
+
+/* ── Units and sensor error codes ──────────────────────────────── */
+
+#define MGDL_PER_MMOL 18.01559f
+#define SGV_MIN_VALID_MGDL 39.0f
+
+/**
+ * True when an sgv (mmol/L) is a CGM error code rather than a reading.
+ * Dexcom reports sensor states as values below 39 mg/dL.
+ */
+bool sgvIsSensorError(float sgv_mmol);
 
 /* ── Glucose color level ───────────────────────────────────────── */
 
@@ -128,8 +141,9 @@ int glucoseColor(float sgv, float yellow_low, float yellow_high,
 /**
  * Determine the alarm level from glucose value + config thresholds.
  * Mirrors the priority chain in handleAlarmsInfoLine():
- *   1. Low alarm   (sgv <= snd_alarm && sgv >= 0.1)
- *   2. Low warning  (sgv <= snd_warning && sgv >= 0.1)
+ *   0. No readings   (sgvIsSensorError)
+ *   1. Low alarm   (sgv <= snd_alarm)
+ *   2. Low warning  (sgv <= snd_warning)
  *   3. High alarm   (sgv >= snd_alarm_high)
  *   4. High warning  (sgv >= snd_warning_high)
  *   5. No readings   (sensor_age_min >= snd_no_readings)

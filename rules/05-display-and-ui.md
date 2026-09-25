@@ -35,8 +35,11 @@ assert.
 
 `buildGlucoseModel()` classifies into `STALENESS_FRESH`, `STALENESS_STALE` and
 `STALENESS_NO_DATA`. Stale greys the value and strikes it through; no-data
-replaces it with `--.-` and raises a banner. An age that cannot be determined is
-no-data, never fresh.
+replaces it with `--.-` and raises a banner. An age that cannot be determined,
+including a reading dated more than `SENSOR_FUTURE_TOLERANCE_SEC` ahead, is
+no-data, never fresh. Stale starts after `SENSOR_AGE_STALE_MIN` (10) so normal
+upload lag does not strike through a live feed. A sensor error code
+(`sgvIsSensorError`) shows `--.-` with a `SENSOR ERROR` banner.
 
 This is the most safety-relevant part of the UI. A stale reading that still
 looks current is the failure mode that hurts someone.

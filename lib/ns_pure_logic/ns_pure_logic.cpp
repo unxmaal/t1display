@@ -152,10 +152,16 @@ int sensorAgeMinutes(long now_sec, long sensor_sec) {
     if (now_sec <= 0 || sensor_sec <= 0)
         return SENSOR_AGE_UNKNOWN;
     long age_sec = now_sec - sensor_sec;
+    if (age_sec < -SENSOR_FUTURE_TOLERANCE_SEC)
+        return SENSOR_AGE_UNKNOWN;
     if (age_sec < 0)
         return 0;
     long mins = (age_sec + 30) / 60;
     return (mins > SENSOR_AGE_UNKNOWN) ? SENSOR_AGE_UNKNOWN : (int)mins;
+}
+
+bool sgvIsSensorError(float sgv_mmol) {
+    return !(sgv_mmol >= SGV_MIN_VALID_MGDL / MGDL_PER_MMOL);
 }
 
 /* ── Glucose color level ───────────────────────────────────────── */
@@ -177,7 +183,7 @@ int alarmLevel(float sgv, float snd_alarm, float snd_warning,
                unsigned int sensor_age_min, unsigned int snd_no_readings,
                bool has_loop_error) {
     /* Priority chain: low alarm > low warn > high alarm > high warn > no readings > loop error */
-    if (!(sgv >= 0.1f))
+    if (sgvIsSensorError(sgv))
         return ALARM_LEVEL_NO_READINGS;
 
     if (sgv <= snd_alarm)

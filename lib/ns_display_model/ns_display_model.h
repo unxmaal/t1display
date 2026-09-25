@@ -17,7 +17,7 @@
 /* ── Sensor age thresholds (minutes) ───────────────────────────── */
 
 #define SENSOR_AGE_NO_DATA_MIN   20
-#define SENSOR_AGE_STALE_MIN     5
+#define SENSOR_AGE_STALE_MIN     10
 #define SENSOR_AGE_CRITICAL_MIN  15
 
 /* ── Color level (maps to TFT colors in the renderer) ──────────── */

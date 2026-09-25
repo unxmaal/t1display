@@ -2,6 +2,7 @@
 #include <string.h>
 #include <math.h>
 #include "ns_json_parse.h"
+#include "ns_pure_logic.h"
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -67,7 +68,7 @@ void test_parse_sgv_normal(void) {
     TEST_ASSERT_EQUAL_UINT64(1709312400000ULL, entry.date_ms);
     TEST_ASSERT_EQUAL(1709312400, entry.date_sec);
     TEST_ASSERT_EQUAL_FLOAT(152.0f, entry.sgv_mgdl);
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 152.0f / 18.0f, entry.sgv_mmol);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 152.0f / MGDL_PER_MMOL, entry.sgv_mmol);
     TEST_ASSERT_EQUAL_STRING("Flat", entry.direction);
     TEST_ASSERT_EQUAL_INT(0, entry.arrow_angle);  // Flat = 0 degrees
 }
@@ -135,8 +136,7 @@ void test_parse_sgv_mmol_conversion(void) {
     SGVEntry entry;
     memset(&entry, 0, sizeof(entry));
     parseSGVResponse(NS_RESPONSE_NORMAL, strlen(NS_RESPONSE_NORMAL), &entry);
-    // 152 mg/dL ÷ 18 = 8.444...
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 8.44f, entry.sgv_mmol);
+    TEST_ASSERT_EQUAL_FLOAT(152.0f / MGDL_PER_MMOL, entry.sgv_mmol);
 }
 
 /* ── parseDeltaResponse tests ──────────────────────────────────── */
@@ -147,7 +147,7 @@ void test_parse_delta(void) {
     int rc = parseDeltaResponse(DELTA_RESPONSE, strlen(DELTA_RESPONSE), &delta);
     TEST_ASSERT_EQUAL_INT(PARSE_OK, rc);
     TEST_ASSERT_EQUAL_INT(5, delta.mgdl);
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 5.0f / 18.0f, delta.mmol);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 5.0f / MGDL_PER_MMOL, delta.mmol);
 }
 
 void test_parse_delta_invalid(void) {
@@ -159,7 +159,7 @@ void test_parse_delta_invalid(void) {
 /* ── formatDelta tests ─────────────────────────────────────────── */
 
 void test_format_delta_mgdl_positive(void) {
-    DeltaInfo d = {5, 5.0f / 18.0f};
+    DeltaInfo d = {5, 5.0f / MGDL_PER_MMOL};
     char buf[16];
     formatDelta(buf, sizeof(buf), &d, true);
     TEST_ASSERT_EQUAL_STRING("+5", buf);
@@ -180,7 +180,7 @@ void test_format_delta_mgdl_zero(void) {
 }
 
 void test_format_delta_mmol_positive(void) {
-    DeltaInfo d = {5, 5.0f / 18.0f};
+    DeltaInfo d = {5, 5.0f / MGDL_PER_MMOL};
     char buf[16];
     formatDelta(buf, sizeof(buf), &d, false);
     TEST_ASSERT_EQUAL_STRING("+0.3", buf);
