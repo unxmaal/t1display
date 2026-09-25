@@ -75,8 +75,6 @@ static bool parseIntIn(const char *val, long lo, long hi, int *out) {
 
 /* ── Parsing ───────────────────────────────────────────────────── */
 
-#define MMOL_PER_MGDL 18.018f
-
 static bool applyGlucoseKey(ParsedConfig *cfg, const char *key, const char *val,
                             int mgdl) {
     float *dst = NULL;
@@ -90,11 +88,11 @@ static bool applyGlucoseKey(ParsedConfig *cfg, const char *key, const char *val,
     else if (strcmp(key, "snd_warning_high") == 0) dst = &cfg->snd_warning_high;
     if (!dst) return false;
 
-    float lo = mgdl ? CFG_GLUCOSE_MIN * MMOL_PER_MGDL : CFG_GLUCOSE_MIN;
-    float hi = mgdl ? CFG_GLUCOSE_MAX * MMOL_PER_MGDL : CFG_GLUCOSE_MAX;
+    float lo = mgdl ? CFG_GLUCOSE_MIN * MGDL_PER_MMOL : CFG_GLUCOSE_MIN;
+    float hi = mgdl ? CFG_GLUCOSE_MAX * MGDL_PER_MMOL : CFG_GLUCOSE_MAX;
     float raw;
     if (parseFloatIn(val, lo, hi, &raw))
-        *dst = mgdl ? raw / MMOL_PER_MGDL : raw;
+        *dst = mgdl ? raw / MGDL_PER_MMOL : raw;
     return true;
 }
 

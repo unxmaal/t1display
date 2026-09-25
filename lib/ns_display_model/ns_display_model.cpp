@@ -106,17 +106,23 @@ void buildGlucoseModel(
         model->age_color = (age_min > SENSOR_AGE_CRITICAL_MIN) ? COLOR_RED : COLOR_WHITE;
     }
 
-    if (model->staleness == STALENESS_STALE) {
-        model->strike_glucose = true;
-        model->glucose_color  = COLOR_LIGHTGREY;
-        model->arrow_color    = COLOR_LIGHTGREY;
-    } else if (model->staleness == STALENESS_NO_DATA) {
+    if (model->staleness == STALENESS_NO_DATA) {
         strlcpy(model->last_seen_str, model->glucose_str, sizeof(model->last_seen_str));
         strlcpy(model->glucose_str, "--.-", sizeof(model->glucose_str));
         model->glucose_color = COLOR_LIGHTGREY;
         model->arrow_angle   = 180;
         model->show_banner   = true;
         snprintf(model->banner_str, sizeof(model->banner_str), "NO DATA %d min", age_min);
+    } else if (sgvIsSensorError(sgv_mmol)) {
+        strlcpy(model->glucose_str, "--.-", sizeof(model->glucose_str));
+        model->glucose_color = COLOR_LIGHTGREY;
+        model->arrow_angle   = 180;
+        model->show_banner   = true;
+        strlcpy(model->banner_str, "SENSOR ERROR", sizeof(model->banner_str));
+    } else if (model->staleness == STALENESS_STALE) {
+        model->strike_glucose = true;
+        model->glucose_color  = COLOR_LIGHTGREY;
+        model->arrow_color    = COLOR_LIGHTGREY;
     }
 
     /* Battery */

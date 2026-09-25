@@ -87,12 +87,23 @@ the most dangerous thing this device can show.
 
 | State | Age | Appearance |
 |-------|-----|------------|
-| Fresh | up to 5 min | value in range colour |
-| Stale | 5–20 min | value greyed and struck through, age shown |
-| No data | over 20 min, or no clock | value replaced by `--.-`, `NO DATA` banner, last known value labelled below |
+| Fresh | up to 10 min | value in range colour |
+| Stale | 11–19 min | value greyed and struck through, age shown |
+| No data | 20 min or more, or age unknown | value replaced by `--.-`, `NO DATA` banner, last known value labelled below |
 
-A reading whose age cannot be determined — no NTP sync, or no timestamp from the
-server — is treated as no data rather than assumed fresh.
+Fresh runs to 10 minutes because readings arrive every 5 minutes and uploaders
+add a few minutes of lag; a reading only goes stale once one has been missed.
+
+A reading whose age cannot be determined — no NTP sync, no timestamp from the
+server, or a timestamp more than 2 minutes in the future — is treated as no data
+rather than assumed fresh. A fast phone clock on the uploader would otherwise keep
+a dead feed looking live.
+
+An sgv below 39 mg/dL is a CGM error code (sensor warm-up, `???`, signal loss),
+not a reading. It shows `--.-` with a `SENSOR ERROR` banner and raises the
+no-readings alert instead of a low alarm.
+
+mg/dL and mmol/L convert at 18.01559, the factor Nightscout uses.
 
 ### Thresholds are always mmol/L
 

@@ -76,14 +76,14 @@ void test_glucose_model_stale_sensor(void) {
         7.5f, 135.0f, false,
         "Flat", 0, "+0.1",
         14, 30,
-        1709312400, 1709311800,  // 600s = 10 min ago
+        1709312400, 1709311680,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NORMAL, 0,
         80, 0
     );
 
     TEST_ASSERT_TRUE(m.show_age);
-    TEST_ASSERT_EQUAL_STRING("10 min", m.age_str);
+    TEST_ASSERT_EQUAL_STRING("12 min", m.age_str);
     TEST_ASSERT_EQUAL_INT(COLOR_WHITE, m.age_color);
 }
 

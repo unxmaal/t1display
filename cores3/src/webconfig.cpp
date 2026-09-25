@@ -7,6 +7,7 @@
 #include "webconfig.h"
 #include "alerts.h"
 #include "ns_config_parse.h"
+#include "ns_pure_logic.h"
 #include <WebServer.h>
 #include <SD.h>
 #include <M5Unified.h>
@@ -53,10 +54,8 @@ static String passInput(const char *label, const char *name, const char *value) 
 
 /* ── Unit conversion (config stores mmol/L internally) ────────── */
 
-static constexpr float MMOL_TO_MGDL = 18.018f;
-
 static float toDisplay(float mmol, bool mgdl) {
-    return mgdl ? mmol * MMOL_TO_MGDL : mmol;
+    return mgdl ? mmol * MGDL_PER_MMOL : mmol;
 }
 
 /* ── GET / — serve config form ─────────────────────────────────── */

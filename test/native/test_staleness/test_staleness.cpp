@@ -32,18 +32,18 @@ void test_fresh_reading_keeps_range_colour(void) {
 }
 
 void test_stale_reading_is_marked_stale(void) {
-    build(10000 + 8 * 60, 10000);
+    build(10000 + 15 * 60, 10000);
     TEST_ASSERT_EQUAL_INT(STALENESS_STALE, m.staleness);
 }
 
 void test_stale_reading_loses_range_colour(void) {
-    build(10000 + 8 * 60, 10000);
+    build(10000 + 15 * 60, 10000);
     TEST_ASSERT_EQUAL_INT_MESSAGE(COLOR_LIGHTGREY, m.glucose_color,
         "a stale value must not keep signalling that it is in range");
 }
 
 void test_stale_reading_is_struck_through(void) {
-    build(10000 + 8 * 60, 10000);
+    build(10000 + 15 * 60, 10000);
     TEST_ASSERT_TRUE(m.strike_glucose);
 }
 
@@ -77,9 +77,70 @@ void test_unknown_sensor_time_is_no_data(void) {
     TEST_ASSERT_EQUAL_INT(STALENESS_NO_DATA, m.staleness);
 }
 
-void test_future_reading_treated_as_fresh(void) {
-    build(10000, 10000 + 600);
+void test_slightly_future_reading_is_fresh(void) {
+    build(10000, 10000 + 60);
     TEST_ASSERT_EQUAL_INT(STALENESS_FRESH, m.staleness);
+}
+
+void test_far_future_reading_is_no_data(void) {
+    build(10000, 10000 + 3600);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(STALENESS_NO_DATA, m.staleness,
+        "a reading from a fast uploader clock must not keep a dead feed looking live");
+}
+
+void test_normal_upload_lag_is_fresh(void) {
+    for (int min = 5; min <= 10; min++) {
+        build(10000 + min * 60, 10000);
+        TEST_ASSERT_EQUAL_INT_MESSAGE(STALENESS_FRESH, m.staleness,
+            "a reading waiting on the next 5-minute upload is not stale");
+    }
+}
+
+void test_one_missed_reading_is_stale(void) {
+    build(10000 + 11 * 60, 10000);
+    TEST_ASSERT_EQUAL_INT(STALENESS_STALE, m.staleness);
+}
+
+static void buildSgv(float mgdl) {
+    buildGlucoseModel(&m,
+        mgdl / MGDL_PER_MMOL, mgdl, 0,
+        "Flat", 0,
+        "",
+        12, 30,
+        10000, 10000,
+        4.5f, 9.0f, 3.9f, 11.0f,
+        ALARM_LEVEL_NO_READINGS, 0,
+        80, 0);
+}
+
+void test_sensor_error_code_is_not_displayed_as_a_value(void) {
+    buildSgv(5.0f);
+    TEST_ASSERT_EQUAL_STRING("--.-", m.glucose_str);
+    TEST_ASSERT_EQUAL_INT(COLOR_LIGHTGREY, m.glucose_color);
+    TEST_ASSERT_EQUAL_INT(180, m.arrow_angle);
+    TEST_ASSERT_TRUE(m.show_banner);
+    TEST_ASSERT_EQUAL_STRING("SENSOR ERROR", m.banner_str);
+    TEST_ASSERT_EQUAL_STRING("", m.last_seen_str);
+}
+
+void test_stale_sensor_error_code_is_not_displayed_as_a_value(void) {
+    buildGlucoseModel(&m,
+        5.0f / MGDL_PER_MMOL, 5.0f, 0,
+        "Flat", 0,
+        "",
+        12, 30,
+        10000 + 15 * 60, 10000,
+        4.5f, 9.0f, 3.9f, 11.0f,
+        ALARM_LEVEL_NO_READINGS, 0,
+        80, 0);
+    TEST_ASSERT_EQUAL_STRING("--.-", m.glucose_str);
+    TEST_ASSERT_EQUAL_STRING("SENSOR ERROR", m.banner_str);
+}
+
+void test_dexcom_low_of_39_is_displayed(void) {
+    buildSgv(39.0f);
+    TEST_ASSERT_FALSE(m.show_banner);
+    TEST_ASSERT_EQUAL_INT(COLOR_RED, m.glucose_color);
 }
 
 void test_boundary_at_stale_threshold(void) {
@@ -90,9 +151,9 @@ void test_boundary_at_stale_threshold(void) {
 }
 
 void test_age_text_still_shown_when_stale(void) {
-    build(10000 + 8 * 60, 10000);
+    build(10000 + 15 * 60, 10000);
     TEST_ASSERT_TRUE(m.show_age);
-    TEST_ASSERT_NOT_NULL(strstr(m.age_str, "8"));
+    TEST_ASSERT_NOT_NULL(strstr(m.age_str, "15"));
 }
 
 int main(int argc, char **argv) {
@@ -108,7 +169,13 @@ int main(int argc, char **argv) {
     RUN_TEST(test_no_data_keeps_last_value_as_secondary);
     RUN_TEST(test_unknown_clock_is_no_data);
     RUN_TEST(test_unknown_sensor_time_is_no_data);
-    RUN_TEST(test_future_reading_treated_as_fresh);
+    RUN_TEST(test_slightly_future_reading_is_fresh);
+    RUN_TEST(test_far_future_reading_is_no_data);
+    RUN_TEST(test_normal_upload_lag_is_fresh);
+    RUN_TEST(test_one_missed_reading_is_stale);
+    RUN_TEST(test_sensor_error_code_is_not_displayed_as_a_value);
+    RUN_TEST(test_stale_sensor_error_code_is_not_displayed_as_a_value);
+    RUN_TEST(test_dexcom_low_of_39_is_displayed);
     RUN_TEST(test_boundary_at_stale_threshold);
     RUN_TEST(test_age_text_still_shown_when_stale);
     return UNITY_END();

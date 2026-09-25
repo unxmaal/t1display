@@ -17,13 +17,19 @@ void test_rounds_to_nearest_minute(void) {
     TEST_ASSERT_EQUAL_INT(0, sensorAgeMinutes(1000 + 29, 1000));
 }
 
-void test_future_timestamp_is_zero_not_huge(void) {
-    TEST_ASSERT_EQUAL_INT_MESSAGE(0, sensorAgeMinutes(1000, 1600),
-        "a server clock ahead of the device must read as fresh, not wrap");
+void test_small_future_skew_is_zero(void) {
+    TEST_ASSERT_EQUAL_INT(0, sensorAgeMinutes(1000, 1000 + SENSOR_FUTURE_TOLERANCE_SEC));
+}
+
+void test_far_future_timestamp_is_unknown(void) {
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SENSOR_AGE_UNKNOWN,
+        sensorAgeMinutes(1000, 1000 + SENSOR_FUTURE_TOLERANCE_SEC + 1),
+        "a reading dated well in the future cannot be trusted as fresh");
+    TEST_ASSERT_EQUAL_INT(SENSOR_AGE_UNKNOWN, sensorAgeMinutes(1000, 1000 + 3600));
 }
 
 void test_small_skew_does_not_raise_no_readings(void) {
-    int age = sensorAgeMinutes(1000, 1000 + 600);
+    int age = sensorAgeMinutes(1000, 1000 + 60);
     TEST_ASSERT_EQUAL_INT(0, age);
     int level = alarmLevel(6.0f, 3.0f, 3.7f, 20.0f, 14.0f,
                            (unsigned)age, 20, false);
@@ -61,7 +67,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_fresh_reading_is_zero_minutes);
     RUN_TEST(test_five_minutes);
     RUN_TEST(test_rounds_to_nearest_minute);
-    RUN_TEST(test_future_timestamp_is_zero_not_huge);
+    RUN_TEST(test_small_future_skew_is_zero);
+    RUN_TEST(test_far_future_timestamp_is_unknown);
     RUN_TEST(test_small_skew_does_not_raise_no_readings);
     RUN_TEST(test_unknown_now_is_unknown);
     RUN_TEST(test_unknown_sensor_time_is_unknown);

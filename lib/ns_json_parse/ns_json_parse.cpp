@@ -72,7 +72,7 @@ int parseSGVResponse(const char *json, size_t len, SGVEntry *entry) {
     strlcpy(entry->direction, dir, sizeof(entry->direction));
 
     entry->sgv_mgdl = obj["sgv"].as<float>();
-    entry->sgv_mmol = entry->sgv_mgdl / 18.0f;
+    entry->sgv_mmol = entry->sgv_mgdl / MGDL_PER_MMOL;
     entry->arrow_angle = directionToAngle(entry->direction);
 
     return PARSE_OK;
@@ -93,7 +93,7 @@ int parseDeltaResponse(const char *json, size_t len, DeltaInfo *delta) {
         return PARSE_ERR_NO_SGV;
 
     delta->mgdl = doc["delta"]["mgdl"].as<int>();
-    delta->mmol = delta->mgdl / 18.0f;
+    delta->mmol = delta->mgdl / MGDL_PER_MMOL;
 
     return PARSE_OK;
 }
