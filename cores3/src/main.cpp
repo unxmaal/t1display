@@ -22,6 +22,7 @@
 
 #include <esp_task_wdt.h>
 #include <ESPmDNS.h>
+#include <SD.h>
 
 /* ── Globals ───────────────────────────────────────────────────── */
 
@@ -29,8 +30,15 @@ static Config     cfg;
 static NSinfo     ns;
 static ErrorLog   errLog;
 
-static SemaphoreHandle_t nsMutex   = nullptr;
-static TaskHandle_t      nsTaskH   = nullptr;
+static SemaphoreHandle_t nsMutex     = nullptr;
+static SemaphoreHandle_t sharedMutex = nullptr;
+static TaskHandle_t      nsTaskH     = nullptr;
+static TaskHandle_t      webTaskH    = nullptr;
+
+static Guarded<Config>              sharedCfg;
+static Exchange<Config, SaveResult> saveExchange;
+static Guarded<PowerStatus>         powerStatus;
+static WebShared webShared = { &sharedCfg, &saveExchange, &powerStatus };
 static volatile bool     nsFetchRequested = false;
 static AlarmState alarmState;
 static RestartSchedule restartSched;
@@ -159,6 +167,7 @@ static void cycleBrightness() {
 /* ── Nightscout polling ────────────────────────────────────────── */
 
 static void nsTask(void *) {
+    static Config nsCfg;
     esp_task_wdt_add(NULL);
     for (;;) {
         if (nsFetchRequested) {
@@ -170,7 +179,8 @@ static void nsTask(void *) {
             scratchLog = errLog;
             xSemaphoreGive(nsMutex);
 
-            readNightscout(cfg, scratch, scratchLog);
+            nsCfg = sharedCfg.snapshot();
+            readNightscout(nsCfg, scratch, scratchLog);
 
             xSemaphoreTake(nsMutex, portMAX_DELAY);
             ns     = scratch;
@@ -213,6 +223,62 @@ static void redraw() {
 }
 
 
+/* ── State shared with the web task ───────────────────────────── */
+
+static void semAcquire(void *m) { xSemaphoreTake(static_cast<SemaphoreHandle_t>(m), portMAX_DELAY); }
+static void semRelease(void *m) { xSemaphoreGive(static_cast<SemaphoreHandle_t>(m)); }
+
+static bool writeConfigToSD(const char *ini, int len) {
+    bool ok = false;
+    if (SD.begin(GPIO_NUM_4, SPI, 25000000)) {
+        File f = SD.open("/M5NS.INI", FILE_WRITE);
+        if (f) {
+            ok = f.write(reinterpret_cast<const uint8_t *>(ini), static_cast<size_t>(len)) ==
+                 static_cast<size_t>(len);
+            f.close();
+        }
+        SD.end();
+    }
+    Serial.printf("[CONFIG] Save %s (%d bytes)\n", ok ? "written" : "failed", len);
+    return ok;
+}
+
+static void serviceConfigSave() {
+    static Config pending;
+    static char   ini[4096];
+    if (!saveExchange.take(&pending))
+        return;
+
+    cfg = pending;
+    sharedCfg.publish(cfg);
+
+    SaveResult r = {};
+    r.wrote = serializeConfigINI(&cfg, ini, sizeof(ini));
+    r.sdOk  = r.wrote > 0 && writeConfigToSD(ini, r.wrote);
+    formatConfigErrors(&cfg, r.errors, sizeof(r.errors));
+    saveExchange.reply(r);
+}
+
+static void publishPowerStatus() {
+    static uint32_t lastMs = 0;
+    uint32_t now = millis();
+    if (lastMs != 0 && now - lastMs < 5000)
+        return;
+    lastMs = now;
+    powerStatus.publish(PowerStatus{ M5.Power.getBatteryLevel(),
+                                     M5.Power.getBatteryVoltage(),
+                                     M5.Power.isCharging() });
+}
+
+static void webTask(void *) {
+    esp_task_wdt_add(NULL);
+    for (;;) {
+        handleWebConfig();
+        esp_task_wdt_reset();
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+}
+
 /* ── Network services ──────────────────────────────────────────── */
 
 static void startServices() {
@@ -221,18 +287,20 @@ static void startServices() {
         Serial.printf("[MDNS] %s.local\n", cfg.deviceName);
     }
     setupOTA(cfg.deviceName, cfg.otaPassword);
-    setupWebConfig(&cfg);
+    setupWebConfig(&webShared);
+    xTaskCreatePinnedToCore(webTask, "web", 8192, nullptr, 1, &webTaskH, 0);
 }
 
 /* ── Setup ─────────────────────────────────────────────────────── */
 
-static void setupWatchdog() {
-    esp_task_wdt_init(NS_WDT_TIMEOUT_SEC, true);
-    esp_task_wdt_add(NULL);
-}
-
 void setup() {
-    nsMutex = xSemaphoreCreateMutex();
+    nsMutex     = xSemaphoreCreateMutex();
+    sharedMutex = xSemaphoreCreateMutex();
+    NsLock sharedLock = { semAcquire, semRelease, sharedMutex };
+    sharedCfg.attach(sharedLock);
+    saveExchange.attach(sharedLock);
+    powerStatus.attach(sharedLock);
+    esp_task_wdt_init(NS_WDT_TIMEOUT_SEC, true);
     auto m5cfg = M5.config();
     M5.begin(m5cfg);
     M5.setTouchButtonHeight(40);
@@ -301,6 +369,8 @@ void setup() {
     }
     Serial.println("[DISPLAY] Splash screen drawn");
 
+    sharedCfg.publish(cfg);
+    publishPowerStatus();
     connectWiFi();
 
     servicesLatchInit(&services);
@@ -318,7 +388,7 @@ void setup() {
     Serial.printf("[DISPLAY] Page %d drawn (glucose=%.1f mmol, dir=%s)\n",
                   currentPage, ns.sensSgv, ns.sensDir);
     Serial.flush();
-    setupWatchdog();
+    esp_task_wdt_add(NULL);
 
     xTaskCreatePinnedToCore(nsTask, "ns", 8192, nullptr, 1, &nsTaskH, 0);
 
@@ -336,8 +406,9 @@ void loop() {
         startServices();
     if (services.started) {
         handleOTA();
-        handleWebConfig();
     }
+    serviceConfigSave();
+    publishPowerStatus();
 
     // Button A (left touch zone): cycle brightness
     if (M5.BtnA.wasPressed()) {
@@ -371,7 +442,7 @@ void loop() {
     NSinfo alarmSnap = ns;
     xSemaphoreGive(nsMutex);
     checkAlarms(cfg, alarmSnap, alarmState);
-    serviceAlerts();
+    serviceAlerts(cfg);
 
     if (nsErrorLogShouldRestart(&errLog, cfg.restart_at_logged_errors))
         ESP.restart();

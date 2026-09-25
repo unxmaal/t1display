@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <time.h>
 #include "ns_config_parse.h"
+#include "ns_shared.h"
 
 /* ── Device config (loaded from SD card INI) ───────────────────── */
 
@@ -33,6 +34,26 @@ struct NSinfo {
     int      delta_mgdl    = 0;
     float    delta_scaled  = 0;       // mmol/L
     char     delta_display[16];
+};
+
+/* ── State shared with the web task ───────────────────────────── */
+
+struct SaveResult {
+    int  wrote;
+    bool sdOk;
+    char errors[48];
+};
+
+struct PowerStatus {
+    int  pct;
+    int  mv;
+    bool charging;
+};
+
+struct WebShared {
+    Guarded<Config>              *cfg;
+    Exchange<Config, SaveResult> *save;
+    Guarded<PowerStatus>         *power;
 };
 
 /* ── Error log ─────────────────────────────────────────────────── */

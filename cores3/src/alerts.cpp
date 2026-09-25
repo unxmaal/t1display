@@ -10,6 +10,7 @@
 
 #include <M5Unified.h>
 #include <time.h>
+#include <atomic>
 
 /* ── AlarmState ────────────────────────────────────────────────── */
 
@@ -29,13 +30,24 @@ static int scaleVolume(int vol) {
 }
 
 static MelodySequencer melody;
+static std::atomic<int> pendingTestSound(ALARM_SOUND_NONE);
 
 static void playMelody(int volume, const int *notes, const int *durations, int count) {
     M5.Speaker.setVolume(scaleVolume(volume));
     melodyStart(&melody, notes, durations, count, millis());
 }
 
-void serviceAlerts() {
+static void playSound(int sound, const Config &cfg);
+
+void requestTestSound(int sound) {
+    pendingTestSound.store(sound);
+}
+
+void serviceAlerts(const Config &cfg) {
+    int requested = pendingTestSound.exchange(ALARM_SOUND_NONE);
+    if (requested != ALARM_SOUND_NONE)
+        playSound(requested, cfg);
+
     if (!melodyActive(&melody))
         return;
     uint32_t nowMs = millis();
@@ -47,7 +59,7 @@ void serviceAlerts() {
 // Low alarm: descending tritone + chromatic fall — psychoacoustically urgent
 // B5→F5 (tritone), then chromatic descent E5→Eb5→D5→Db5 (falling sensation)
 // Repeated twice with shorter gaps for urgency
-void playLowAlarm(int volume) {
+static void playLowAlarm(int volume) {
     static const int notes[]    = { 988, 698,  659, 622, 587, 554,
                              988, 698,  659, 622, 587, 554 };
     static const int durations[] = { 120, 200,  100, 100, 100, 250,
@@ -56,28 +68,28 @@ void playLowAlarm(int volume) {
 }
 
 // Low warning: gentle descending three-note — B5 G5 D5
-void playLowWarning(int volume) {
+static void playLowWarning(int volume) {
     static const int notes[]    = { 988, 784, 587 };
     static const int durations[] = { 200, 200, 400 };
     playMelody(volume, notes, durations, 3);
 }
 
 // High alarm: urgent ascending major — C5 E5 G5 (repeated)
-void playHighAlarm(int volume) {
+static void playHighAlarm(int volume) {
     static const int notes[]    = { 523, 659, 784,  523, 659, 784 };
     static const int durations[] = { 150, 150, 300,  150, 150, 300 };
     playMelody(volume, notes, durations, 6);
 }
 
 // High warning: gentle ascending two-note — C5 E5
-void playHighWarning(int volume) {
+static void playHighWarning(int volume) {
     static const int notes[]    = { 523, 659 };
     static const int durations[] = { 200, 350 };
     playMelody(volume, notes, durations, 2);
 }
 
 // No readings / stale data: two-tone attention chime — G5 D5
-void playNoReadings(int volume) {
+static void playNoReadings(int volume) {
     static const int notes[]    = { 784, 587 };
     static const int durations[] = { 250, 400 };
     playMelody(volume, notes, durations, 2);
@@ -102,7 +114,12 @@ void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
     if (!alarmShouldFire(&alarm.sched, nowMs, level, cfg.alarm_repeat))
         return;
 
-    switch (alarmSound(level)) {
+    playSound(alarmSound(level), cfg);
+    alarmRecordFired(&alarm.sched, nowMs);
+}
+
+static void playSound(int sound, const Config &cfg) {
+    switch (sound) {
         case ALARM_SOUND_LOW_ALARM:
             playLowAlarm(cfg.alarm_volume);
             break;
@@ -119,5 +136,4 @@ void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
             playNoReadings(cfg.warning_volume);
             break;
     }
-    alarmRecordFired(&alarm.sched, nowMs);
 }

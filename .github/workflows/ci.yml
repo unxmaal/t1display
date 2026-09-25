@@ -33,6 +33,9 @@ jobs:
           key: pio-native-${{ hashFiles('platformio.ini') }}
       - run: pip install --upgrade platformio
       - run: pio test -e native_asan
+      - run: pio test -e native_tsan
+        env:
+          TSAN_OPTIONS: halt_on_error=1
 
   coverage:
     runs-on: ubuntu-latest
@@ -53,7 +56,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install --upgrade platformio
-      - run: pio check -e native --fail-on-defect=high
+      - run: pio check -e native --fail-on-defect=medium
 
   firmware:
     runs-on: ubuntu-latest

@@ -26,14 +26,10 @@ void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm);
 /** Alarm level currently indicated by the data, without side effects. */
 int currentAlarmLevel(const Config &cfg, const NSinfo &ns);
 
-/** Advance melody playback. Call every loop iteration. */
-void serviceAlerts();
+/** Advance melody playback and start any requested test sound. Call every loop iteration. */
+void serviceAlerts(const Config &cfg);
 
-/** Individual alert melodies — for testing via web UI. */
-void playLowAlarm(int volume);
-void playLowWarning(int volume);
-void playHighAlarm(int volume);
-void playHighWarning(int volume);
-void playNoReadings(int volume);
+/** Ask the loop to play an ALARM_SOUND_* once. Safe to call from any task. */
+void requestTestSound(int sound);
 
 #endif // CORES3_ALERTS_H
