@@ -18,12 +18,7 @@ Core/Core2 using the Arduino IDE.
 
 This is a ground-up rewrite for the M5Stack CoreS3 with a new architecture,
 pure-logic libraries, a native test suite, and a PlatformIO build. No upstream
-source files remain. A handful of upstream string literals survive where they
-are protocol rather than prose — most importantly the UDP snooze packet format
-in `lib/ns_pure_logic/`, which is kept byte-identical so that snooze interop
-with upstream devices remains possible. Note that the transport is not wired up:
-the packet format is parsed and tested, but nothing opens a UDP socket, so
-snooze does not currently sync between devices.
+source files remain.
 
 ## Features
 
@@ -155,7 +150,7 @@ web_pass = your-web-secret
 
 `ota_password` gates over-the-air updates. **With it unset, OTA does not start at
 all** — the port stays closed rather than accepting unauthenticated firmware.
-Set it before relying on OTA, and add `--auth=<password>` to your upload flags.
+Set it before relying on OTA; the `ota` build env passes it as `--auth`.
 
 `web_user` and `web_pass` together enable HTTP Basic auth on the config UI. With
 either unset there is no authentication, and anyone on your network can read the
@@ -204,8 +199,15 @@ Requires [PlatformIO](https://platformio.org/).
 # Build firmware
 cd cores3 && pio run
 
-# Flash over USB (first time)
+# Flash over USB (first time); the port is auto-detected
 cd cores3 && pio run -t upload
+
+# Flash over USB to a specific port
+cd cores3 && pio run -t upload --upload-port /dev/ttyACM0
+
+# Flash over Wi-Fi once ota_password is set
+cd cores3 && T1DISPLAY_HOST=t1display.local T1DISPLAY_OTA_PASSWORD=your-ota-secret \
+  pio run -e ota -t upload
 
 # Run the native test suite
 pio test -e native
@@ -220,12 +222,6 @@ cd cores3 && pio run -e m5stack-cores3 --project-option="build_flags=-DWOKWI_SIM
 The `Wokwi-GUEST` open network is only joined in simulator builds. Release
 firmware never associates with it.
 
-After the first USB flash, OTA updates work by setting `upload_protocol = espota`
-and `upload_port = t1display.local` in `cores3/platformio.ini`.
-
-Note that `cores3/platformio.ini` pins `upload_port` to a specific USB device
-path. Adjust it for your machine — typically `/dev/ttyACM0` on Linux.
-
 ## Architecture
 
 Hardware-dependent code lives in `cores3/`. Everything that can be tested on the
@@ -236,7 +232,7 @@ host lives in `lib/` and is compiled into both the firmware and the native tests
     `NSinfo` and the error log are exchanged with the render loop under a
     mutex, so a slow or wedged network request cannot stall touch input,
     the snooze button, or alarm checks.
-- `lib/ns_pure_logic/` — glucose colour, alarm levels, formatting, snooze, CRC
+- `lib/ns_pure_logic/` — glucose colour, alarm levels, formatting, JSON sanitising
 - `lib/ns_json_parse/` — Nightscout API JSON parsing
 - `lib/ns_display_model/` — display layout as pure data structs
 - `lib/ns_config_parse/` — INI parsing, validation, and serialization

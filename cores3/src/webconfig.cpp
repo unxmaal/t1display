@@ -62,9 +62,10 @@ static float toDisplay(float mmol, bool mgdl) {
 
 static void handleRoot() {
     const Config &c = *cfgPtr;
+    String title = "t1display " + escapeHtml(c.deviceName);
     String html = "<!DOCTYPE html><html><head>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>NightscoutMon Config</title>"
+        "<title>" + title + "</title>"
         "<style>"
         "body{font-family:sans-serif;max-width:600px;margin:0 auto;padding:16px;background:#1a1a1a;color:#eee}"
         "h1{color:#0cf}h2{color:#8cf;border-bottom:1px solid #444;padding-bottom:4px}"
@@ -74,7 +75,7 @@ static void handleRoot() {
         "button{padding:12px 24px;margin:8px 4px;border:none;border-radius:4px;font-size:16px;cursor:pointer}"
         ".save{background:#0a0;color:#fff}.reboot{background:#c00;color:#fff}"
         "</style></head><body>"
-        "<h1>NightscoutMon Config</h1>"
+        "<h1>" + title + "</h1>"
         "<form method='POST' action='/save'>";
 
     // System status (live, read-only)

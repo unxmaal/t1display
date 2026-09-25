@@ -15,9 +15,7 @@ Originally forked from mlukasek/M5_NightscoutMon, then rewritten ground-up for
 the CoreS3. No upstream source files remain. Upstream targeted the M5Stack
 Core/Core2 with the Arduino IDE and a single ~2900-line .ino.
 
-Two upstream artifacts are deliberately retained and must not be renamed:
-- the GPL-3.0 LICENSE
-- the UDP snooze wire string in `lib/ns_pure_logic/ns_pure_logic.cpp` (format only; no socket is opened)
+The GPL-3.0 LICENSE is the one upstream artifact deliberately retained.
 
 ## License
 

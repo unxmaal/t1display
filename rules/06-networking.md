@@ -47,8 +47,3 @@ stays closed rather than open and unauthenticated.
 
 mDNS comes up as a side effect of `ArduinoOTA.begin()`, so `<device_name>.local`
 only resolves when OTA is enabled.
-
-## Not implemented
-
-The UDP snooze wire format in `lib/ns_pure_logic/` is preserved for upstream
-interop, but no socket is opened and snooze does not sync between devices.
