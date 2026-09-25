@@ -77,3 +77,36 @@ jobs:
           path: |
             cores3/.pio/build/m5stack-cores3/firmware.bin
             cores3/.pio/build/m5stack-cores3/firmware.elf
+
+  simulator:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-cores3-${{ hashFiles('cores3/platformio.ini') }}
+      - run: pip install --upgrade platformio
+      - run: pio run -d cores3 -e wokwi
+      - if: env.WOKWI_CLI_TOKEN == ''
+        run: echo "::notice::WOKWI_CLI_TOKEN is not set, so the simulator smoke test was skipped"
+      - if: env.WOKWI_CLI_TOKEN != ''
+        uses: wokwi/wokwi-ci-action@v1
+        with:
+          token: ${{ secrets.WOKWI_CLI_TOKEN }}
+          path: cores3
+          timeout: 90000
+          expect_text: '[BOOT] Setup complete'
+          fail_text: 'Guru Meditation'
+          serial_log_file: wokwi-serial.log
+      - if: always() && env.WOKWI_CLI_TOKEN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: wokwi-serial-log
+          path: cores3/wokwi-serial.log
