@@ -244,7 +244,7 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
 /* ── Page 1: Error log / status ────────────────────────────────── */
 
 void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog) {
-    (void)cfg; (void)ns;
+    (void)ns;
 
     // Prepare error data for the model
     int codes[STATUS_MAX_ERRORS];
@@ -313,6 +313,13 @@ void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog)
     g.drawString(model.uptime_str, 0, infoY + 18);
     g.drawString(model.ip_str, 0, infoY + 36);
     g.drawString(model.version_str, 0, infoY + 54);
+
+    char cfgErr[48];
+    formatConfigErrors(&cfg, cfgErr, sizeof(cfgErr));
+    if (cfgErr[0]) {
+        g.setTextColor(TFT_YELLOW, TFT_BLACK);
+        g.drawString(cfgErr, 0, infoY + 72);
+    }
 
     drawBattery(296, 226, model.battery_pct);
 }

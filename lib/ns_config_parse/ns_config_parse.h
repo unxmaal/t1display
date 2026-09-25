@@ -72,6 +72,8 @@ struct ParsedConfig {
     int snd_loop_error;
 
     int unknownKeys;
+    int configErrors;
+    char firstBadKey[24];
 
     char wlanssid[CFG_MAX_WLAN][64];
     char wlanpass[CFG_MAX_WLAN][64];
@@ -92,7 +94,8 @@ bool applyConfigKey(ParsedConfig *cfg, const char *key, const char *val,
 /**
  * Apply a whole form submission. Threshold values are interpreted in the
  * unit the config was in before the call, so a show_mgdl change in the same
- * submission does not rescale them. Validates when done.
+ * submission does not rescale them. Validates when done. Config errors are
+ * reset first, so they describe this submission alone.
  */
 void applyConfigForm(ParsedConfig *cfg, const ConfigKV *kv, int count);
 
@@ -115,6 +118,9 @@ int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg);
 void validateConfig(ParsedConfig *cfg);
 
 /** OTA is only started when a password is configured. */
+/** "" when clean, else "N config error(s): <first bad key>". */
+void formatConfigErrors(const ParsedConfig *cfg, char *out, size_t outSize);
+
 bool configOtaEnabled(const ParsedConfig *cfg);
 
 /** Web config requires auth only when both user and password are set. */

@@ -19,6 +19,9 @@ struct RestartSchedule {
 
 void restartScheduleInit(RestartSchedule *s);
 
+/** True for a well-formed "HH:MM" (0-23, 0-59). "NORES" is not a time. */
+bool restartTimeValid(const char *hhmm);
+
 /**
  * True exactly once per entry into the configured minute.
  * "NORES", empty and malformed values never fire.

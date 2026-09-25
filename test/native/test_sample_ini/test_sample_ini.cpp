@@ -76,18 +76,24 @@ void test_sample_ini_declares_wlan1(void) {
 
 void test_sample_ini_thresholds_are_mmol(void) {
     parseShipped();
-    TEST_ASSERT_FLOAT_WITHIN(11.5f, 13.5f, cfg.yellow_low);
-    TEST_ASSERT_FLOAT_WITHIN(11.5f, 13.5f, cfg.yellow_high);
-    TEST_ASSERT_FLOAT_WITHIN(11.5f, 13.5f, cfg.red_low);
-    TEST_ASSERT_FLOAT_WITHIN(11.5f, 13.5f, cfg.red_high);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 4.5f,  cfg.yellow_low);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 9.0f,  cfg.yellow_high);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.9f,  cfg.red_low);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 11.0f, cfg.red_high);
 }
 
 void test_sample_ini_alarm_thresholds_are_mmol(void) {
     parseShipped();
-    TEST_ASSERT_FLOAT_WITHIN(11.5f, 13.5f, cfg.snd_alarm);
-    TEST_ASSERT_FLOAT_WITHIN(11.5f, 13.5f, cfg.snd_warning);
-    TEST_ASSERT_FLOAT_WITHIN(14.0f, 16.0f, cfg.snd_alarm_high);
-    TEST_ASSERT_FLOAT_WITHIN(14.0f, 16.0f, cfg.snd_warning_high);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.0f,  cfg.snd_alarm);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.7f,  cfg.snd_warning);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 20.0f, cfg.snd_alarm_high);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 14.0f, cfg.snd_warning_high);
+}
+
+void test_sample_ini_has_no_config_errors(void) {
+    parseShipped();
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, cfg.configErrors,
+        "the file users are told to copy must load cleanly");
 }
 
 void test_sample_ini_threshold_ordering(void) {
@@ -164,6 +170,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_sample_ini_declares_wlan1);
     RUN_TEST(test_sample_ini_thresholds_are_mmol);
     RUN_TEST(test_sample_ini_alarm_thresholds_are_mmol);
+    RUN_TEST(test_sample_ini_has_no_config_errors);
     RUN_TEST(test_sample_ini_threshold_ordering);
     RUN_TEST(test_sample_ini_normal_glucose_is_green);
     RUN_TEST(test_sample_ini_normal_glucose_raises_no_alarm);

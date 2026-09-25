@@ -111,11 +111,15 @@ mg/dL and mmol/L convert at 18.01559, the factor Nightscout uses.
 `red_*`, and all four `snd_*` values — is compared in mmol/L no matter how
 `show_mgdl` is set.
 
-This differs from upstream M5_NightscoutMon, where `show_mgdl = 1` meant the INI
-values themselves were in mg/dL. Do not copy threshold numbers from an upstream
-INI: parsed as mmol/L, a value like `yellow_low = 80` makes every normal reading
-register as out of range, and `snd_alarm = 60` alarms on every reading. The
-shipped sample file is checked against this by `test/native/test_sample_ini/`.
+A threshold above 40 can only be mg/dL, so in the INI it is converted rather than
+rejected. That makes an upstream M5_NightscoutMon INI, where `show_mgdl = 1`
+meant the values were mg/dL, load correctly. Values of 40 and below are always
+read as mmol/L.
+
+The thresholds must be in order: `red_low ≤ yellow_low < yellow_high ≤ red_high`
+and `snd_alarm ≤ snd_warning < snd_warning_high ≤ snd_alarm_high`. If either set
+is out of order, that whole set reverts to its defaults. A mis-ordered set could
+otherwise turn a hyper emergency into a low-warning chime.
 
 ### Values are not quoted
 
@@ -154,9 +158,21 @@ credential and needing nothing.
 
 ### Sections
 
-`[config]` for everything else, `[wlan1]` through `[wlan10]` for networks. Any
-key the parser does not recognise is counted in `unknownKeys` and otherwise
-ignored, so a stale INI fails loudly in tests rather than silently at runtime.
+`[config]` for everything else, `[wlan1]` through `[wlan10]` for networks.
+Section names ignore case.
+
+### Config errors
+
+Anything the device could not take as written counts as a config error:
+- an unknown section or key;
+- a value that doesn't parse, is out of range (clamped), or is too long (truncated);
+- a line over 255 characters;
+- a `restart_at_time` that isn't `HH:MM` (reverts to `NORES`);
+- a threshold set out of order (reverts to defaults).
+
+The count and the first offending key appear in yellow on the boot splash, on the
+status page, over serial, and on the page shown after a web save, e.g.
+`2 config errors: red_hihg`. A web save clears errors from the file it replaced.
 
 ## Touch controls
 

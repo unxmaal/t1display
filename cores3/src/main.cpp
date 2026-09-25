@@ -78,6 +78,10 @@ static bool loadConfigFromSD() {
     delete[] buf;
 
     Serial.printf("Parsed %d config values from M5NS.INI\n", parsed);
+    char errMsg[48];
+    formatConfigErrors(&cfg, errMsg, sizeof(errMsg));
+    if (errMsg[0])
+        Serial.printf("[CONFIG] %s\n", errMsg);
     return parsed > 0;
 }
 
@@ -275,6 +279,12 @@ void setup() {
     M5.Display.drawString(cfg.deviceName, 160, 60);
     M5.Display.setFont(&FreeSans9pt7b);
     M5.Display.drawString("CoreS3", 160, 100);
+    char cfgErr[48];
+    formatConfigErrors(&cfg, cfgErr, sizeof(cfgErr));
+    if (cfgErr[0]) {
+        M5.Display.setTextColor(TFT_YELLOW, TFT_BLACK);
+        M5.Display.drawString(cfgErr, 160, 140);
+    }
     Serial.println("[DISPLAY] Splash screen drawn");
 
     connectWiFi();
