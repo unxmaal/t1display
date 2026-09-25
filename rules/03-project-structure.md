@@ -20,7 +20,7 @@ cores3/
   wokwi.toml            — Wokwi config
   load_env.py           — PlatformIO pre-build script
 lib/
-  ns_pure_logic/        — glucose color, alarm levels, formatting, snooze, CRC
+  ns_pure_logic/        — glucose color, alarm levels, formatting, JSON sanitising
   ns_json_parse/        — Nightscout API JSON parsing (ArduinoJson)
   ns_display_model/     — display layout as pure data structs
   ns_config_parse/      — INI parse, validate, serialize

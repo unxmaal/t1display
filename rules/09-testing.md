@@ -13,7 +13,7 @@
 pio test -e native
 
 # Single test suite
-pio test -e native -f test_crc
+pio test -e native -f native/test_units
 ```
 
 ## Architecture
@@ -32,7 +32,6 @@ Rules for `ns_pure_logic`:
 
 ### What goes in ns_pure_logic
 
-- CRC calculations
 - String parsing and validation
 - Data format conversions
 - Configuration parsing helpers
@@ -49,8 +48,8 @@ Rules for `ns_pure_logic`:
 ```
 test/
   native/
-    test_crc/
-      test_crc.cpp
+    test_units/
+      test_units.cpp
     test_direction/
       test_direction.cpp
     ...
@@ -67,7 +66,7 @@ Each test suite goes in its own subdirectory under `test/native/`.
 
 ## Conventions
 
-- Test function names: `test_<function>_<scenario>` (e.g., `test_calcCRC_empty_string`)
+- Test function names: `test_<function>_<scenario>` (e.g., `test_direction_TripleUp`)
 - Each test file has `setUp()` and `tearDown()` (even if empty — Unity requires them)
 - Each test file has its own `main()` with `UNITY_BEGIN()` / `UNITY_END()`
 - Use `TEST_ASSERT_EQUAL_*` macros for typed comparisons
@@ -83,8 +82,8 @@ The `env:` prefix is required. Without it, PlatformIO throws `'No section: base_
 
 ### Test suite directory structure
 
-**Wrong:** Flat files in `test/native/test_crc.cpp`
-**Right:** Each suite in its own subdirectory: `test/native/test_crc/test_crc.cpp`
+**Wrong:** Flat files in `test/native/test_units.cpp`
+**Right:** Each suite in its own subdirectory: `test/native/test_units/test_units.cpp`
 
 PlatformIO treats each subdirectory as a separate test suite. Flat `.cpp` files with their own `main()` in one directory causes "Nothing to build" errors — PlatformIO can't find them as suites.
 
@@ -114,7 +113,7 @@ The block scope ensures `jsonBuf` doesn't leak. The copy back to `String` is nec
 
 ### `const char*` tightening
 
-When extracting functions, tighten `char*` params to `const char*` where the function doesn't modify the input (e.g., `calcCRC`). This is safe — `char[]` and `char*` implicitly convert to `const char*`. It catches accidental mutation bugs at compile time.
+When extracting functions, tighten `char*` params to `const char*` where the function doesn't modify the input (e.g., `directionToAngle`). This is safe — `char[]` and `char*` implicitly convert to `const char*`. It catches accidental mutation bugs at compile time.
 
 ### Tests that read repository files
 

@@ -6,7 +6,6 @@
 
 #include "ns_pure_logic.h"
 #include <string.h>
-#include <ctype.h>
 #include <stdio.h>
 
 /* ── Integer clamping ──────────────────────────────────────────── */
@@ -15,27 +14,6 @@ int clampInt(int value, int min_val, int max_val) {
     if (value < min_val) return min_val;
     if (value > max_val) return max_val;
     return value;
-}
-
-/* ── CRC-16 ─────────────────────────────────────────────────────── */
-
-uint16_t crc16_update(uint16_t crc, uint8_t a) {
-    crc ^= a;
-    for (int i = 0; i < 8; ++i) {
-        if (crc & 1)
-            crc = (crc >> 1) ^ 0xA001;
-        else
-            crc = (crc >> 1);
-    }
-    return crc;
-}
-
-uint16_t calcCRC(const char* str) {
-    uint16_t crc = 0;
-    for (size_t i = 0; i < strlen(str); i++) {
-        crc = crc16_update(crc, (uint8_t)str[i]);
-    }
-    return crc;
 }
 
 /* ── Direction → angle mapping ──────────────────────────────────── */
@@ -76,30 +54,8 @@ int directionArrowStyle(const char* direction) {
     return directionToAngle(direction) == 180 ? ARROW_NONE : ARROW_SINGLE;
 }
 
-/* ── Snooze packet helpers ──────────────────────────────────────── */
-
-bool isValidSnoozePacket(const char* packetBuffer) {
-    /* Wire format is fixed by upstream M5_NightscoutMon for UDP snooze interop.
-     * Do not rename with the project. */
-    return strncmp(packetBuffer, "M5_Nightscout SNOOZE: USR=", 26) == 0;
-}
-
-bool parseSnoozePacket(const char* packetBuffer,
-                       int* urlCRC_out,
-                       unsigned long* snoozeUntil_out) {
-    if (packetBuffer == NULL || urlCRC_out == NULL || snoozeUntil_out == NULL)
-        return false;
-
-    int parsed = sscanf(packetBuffer,
-                        "M5_Nightscout SNOOZE: USR=%d, SnoozeUntil=%lu",
-                        urlCRC_out, snoozeUntil_out);
-    return parsed == 2;
-}
-
 /* ── JSON sanitization ──────────────────────────────────────────── */
 
-/* Helper: replace 6-char sequence starting at buf[pos] with a space,
-   shifting the rest of the buffer left by 5. Returns new len. */
 static size_t replace6WithSpace(char* buf, size_t len, size_t pos) {
     buf[pos] = ' ';
     size_t tail = len - (pos + 6);
@@ -243,91 +199,4 @@ void formatUptime(char *buf, size_t bufsize, unsigned long ms) {
     int minutes = rem / 60;
     int seconds = rem % 60;
     snprintf(buf, bufsize, "%02dd %02d:%02d:%02d", days, hours, minutes, seconds);
-}
-
-/* ── INI file helpers ───────────────────────────────────────────── */
-
-bool isCommentChar(char c) {
-    return (c == ';' || c == '#');
-}
-
-char* skipWhiteSpace(char* str) {
-    char* cp = str;
-    while (isspace((unsigned char)*cp))
-        ++cp;
-    return cp;
-}
-
-void removeTrailingWhiteSpace(char* str) {
-    char* cp = str + strlen(str) - 1;
-    while (cp >= str && isspace((unsigned char)*cp))
-        *cp-- = '\0';
-}
-
-bool parseIPAddress(const char* str, uint8_t ip[4]) {
-    if (str == NULL)
-        return false;
-
-    int i = 0;
-    const char* cp = str;
-    unsigned int accum[4] = {0, 0, 0, 0};
-
-    while (*cp != '\0' && i < 4) {
-        if (*cp == '.') {
-            ++i;
-            ++cp;
-            continue;
-        }
-        if (isdigit((unsigned char)*cp)) {
-            accum[i] = accum[i] * 10 + (*cp - '0');
-            if (accum[i] > 255) {
-                ip[0] = ip[1] = ip[2] = ip[3] = 0;
-                return false;
-            }
-        } else {
-            ip[0] = ip[1] = ip[2] = ip[3] = 0;
-            return false;
-        }
-        ++cp;
-    }
-    if (i != 3)
-        return false;
-    for (int j = 0; j < 4; j++)
-        ip[j] = (uint8_t)accum[j];
-    return true;
-}
-
-bool parseMACAddress(const char* str, uint8_t mac[6]) {
-    if (str == NULL)
-        return false;
-
-    int i = 0;
-    const char* cp = str;
-    unsigned int accum[6] = {0, 0, 0, 0, 0, 0};
-
-    while (*cp != '\0' && i < 6) {
-        if (*cp == ':' || *cp == '-') {
-            ++i;
-            ++cp;
-            continue;
-        }
-        if (isdigit((unsigned char)*cp)) {
-            accum[i] = accum[i] * 16 + (*cp - '0');
-        } else if (isxdigit((unsigned char)*cp)) {
-            accum[i] = accum[i] * 16 + (toupper((unsigned char)*cp) - 55);
-        } else {
-            memset(mac, 0, 6);
-            return false;
-        }
-        if (accum[i] > 0xFF) {
-            memset(mac, 0, 6);
-            return false;
-        }
-        ++cp;
-    }
-    if (i != 5)
-        return false;
-    for (int j = 0; j < 6; j++)
-        mac[j] = (uint8_t)accum[j];
-    return true;
 }
