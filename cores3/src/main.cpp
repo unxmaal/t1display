@@ -18,10 +18,10 @@
 #include "ns_config_parse.h"
 #include "ns_pure_logic.h"
 #include "ns_restart_schedule.h"
+#include "ns_runtime.h"
 
 #include <esp_task_wdt.h>
-
-#define WDT_TIMEOUT_SEC 30
+#include <ESPmDNS.h>
 
 /* ── Globals ───────────────────────────────────────────────────── */
 
@@ -34,6 +34,7 @@ static TaskHandle_t      nsTaskH   = nullptr;
 static volatile bool     nsFetchRequested = false;
 static AlarmState alarmState;
 static RestartSchedule restartSched;
+static ServicesLatch   services;
 
 static WiFiMulti  wifiMulti;
 
@@ -113,6 +114,8 @@ static void connectWiFi() {
     M5.Display.setTextDatum(TL_DATUM);
     M5.Display.drawString("Connecting WiFi...", 10, 100);
 
+    configTime(cfg.timeZone, cfg.dst, ntpServer, "time.nist.gov", "time.google.com");
+
     Serial.printf("[WIFI] Connecting (%d APs)...\n", apCount);
     int attempts = 0;
     while (wifiMulti.run() != WL_CONNECTED && attempts < 10) {
@@ -128,9 +131,7 @@ static void connectWiFi() {
         M5.Display.drawString(WiFi.localIP().toString().c_str(), 10, 120);
         delay(1000);
 
-        // NTP time sync
         Serial.println("[NTP] Syncing time...");
-        configTime(cfg.timeZone, cfg.dst, ntpServer, "time.nist.gov", "time.google.com");
         struct tm timeinfo;
         for (int i = 0; i < 10; i++) {
             if (getLocalTime(&timeinfo, 10)) {
@@ -177,6 +178,8 @@ static void nsTask(void *) {
             xSemaphoreGive(nsMutex);
 
             nsFetchRequested = false;
+            Serial.printf("[NS] Stack headroom: %u bytes\n",
+                          (unsigned)uxTaskGetStackHighWaterMark(NULL));
         }
         esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(200));
@@ -210,10 +213,21 @@ static void redraw() {
 }
 
 
+/* ── Network services ──────────────────────────────────────────── */
+
+static void startServices() {
+    if (MDNS.begin(cfg.deviceName)) {
+        MDNS.addService("http", "tcp", 80);
+        Serial.printf("[MDNS] %s.local\n", cfg.deviceName);
+    }
+    setupOTA(cfg.deviceName, cfg.otaPassword);
+    setupWebConfig(&cfg);
+}
+
 /* ── Setup ─────────────────────────────────────────────────────── */
 
 static void setupWatchdog() {
-    esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+    esp_task_wdt_init(NS_WDT_TIMEOUT_SEC, true);
     esp_task_wdt_add(NULL);
 }
 
@@ -289,11 +303,9 @@ void setup() {
 
     connectWiFi();
 
-    // OTA updates (only useful once WiFi is connected)
-    if (WiFi.status() == WL_CONNECTED) {
-        setupOTA(cfg.deviceName, cfg.otaPassword);
-        setupWebConfig(&cfg);
-    }
+    servicesLatchInit(&services);
+    if (servicesDue(&services, WiFi.status() == WL_CONNECTED))
+        startServices();
 
     // Initial fetch (will fail without WiFi — that's OK)
     Serial.println("[NS] Initial Nightscout fetch...");
@@ -320,8 +332,12 @@ void loop() {
     M5.update();
 
 
-    handleOTA();
-    handleWebConfig();
+    if (servicesDue(&services, WiFi.status() == WL_CONNECTED))
+        startServices();
+    if (services.started) {
+        handleOTA();
+        handleWebConfig();
+    }
 
     // Button A (left touch zone): cycle brightness
     if (M5.BtnA.wasPressed()) {

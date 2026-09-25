@@ -8,8 +8,10 @@
 #include "ns_url_build.h"
 #include "ns_pure_logic.h"
 #include "ns_json_parse.h"
+#include "ns_runtime.h"
 
 #include <HTTPClient.h>
+#include <esp_task_wdt.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <string.h>
@@ -38,8 +40,8 @@ static void logError(ErrorLog &errLog, int code) {
 static int httpGetSanitized(const char *url, char **outBuf, size_t *outLen,
                              ErrorLog &errLog, int errCode) {
     HTTPClient http;
-    http.setConnectTimeout(10000);
-    http.setTimeout(15000);
+    http.setConnectTimeout(NS_HTTP_CONNECT_TIMEOUT_MS);
+    http.setTimeout(NS_HTTP_READ_TIMEOUT_MS);
     NS_LOG.printf("[HTTP] GET %s\n", url);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
 
@@ -162,6 +164,7 @@ int readNightscout(const Config &cfg, NSinfo &ns, ErrorLog &errLog) {
     if (rc != 0)
         return rc;
 
+    esp_task_wdt_reset();
     fetchProperties(cfg, ns, errLog);
 
     nsErrorLogSuccess(&errLog);

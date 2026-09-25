@@ -6,6 +6,7 @@
 
 #include "ota.h"
 #include <ArduinoOTA.h>
+#include <ESPmDNS.h>
 #include <M5Unified.h>
 
 void setupOTA(const char* hostname, const char* password) {
@@ -38,7 +39,9 @@ void setupOTA(const char* hostname, const char* password) {
         else if (error == OTA_END_ERROR)     Serial.println("End Failed");
     });
 
+    ArduinoOTA.setMdnsEnabled(false);
     ArduinoOTA.begin();
+    MDNS.enableArduino(3232, true);
     Serial.printf("[OTA] Ready at %s.local\n", hostname);
 }
 
