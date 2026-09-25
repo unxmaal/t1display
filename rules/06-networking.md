@@ -52,6 +52,11 @@ input, the snooze button and alarm checks.
 are both set. `/test` is POST-only — a GET with side effects is reachable from
 any page via an `<img>` tag.
 
+Never render a secret into the page (`configIsSecretKey()`: token,
+ota_password, web_pass, wlan_pass_N). `passInput()` renders them empty with a
+set/not-set placeholder. `applyConfigForm()` treats a blank secret as
+unchanged and `clear_<key>=1` as a deliberate removal.
+
 ## OTA
 
 ArduinoOTA, started only when `ota_password` is set. With it unset the port

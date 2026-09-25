@@ -118,6 +118,9 @@ int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg);
 void validateConfig(ParsedConfig *cfg);
 
 /** OTA is only started when a password is configured. */
+/** True for keys whose values the web form must never render. */
+bool configIsSecretKey(const char *key);
+
 /** "" when clean, else "N config error(s): <first bad key>". */
 void formatConfigErrors(const ParsedConfig *cfg, char *out, size_t outSize);
 

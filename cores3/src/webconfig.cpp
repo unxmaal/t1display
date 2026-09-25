@@ -49,8 +49,14 @@ static String floatInput(const char *label, const char *name, float value) {
     return "<label>" + String(label) + "<br><input type='number' step='0.1' name='" + name + "' value='" + String(value, 1) + "'></label><br>\n";
 }
 
-static String passInput(const char *label, const char *name, const char *value) {
-    return "<label>" + String(label) + "<br><input type='password' name='" + name + "' value='" + escapeHtml(value) + "'></label><br>\n";
+static String passInput(const char *label, const char *name, const char *stored) {
+    bool isSet = stored[0] != '\0';
+    String s = "<label>" + String(label) + "<br><input type='password' name='" + name +
+               "' value='' autocomplete='new-password' placeholder='" +
+               (isSet ? "set - leave blank to keep" : "not set") + "'></label>";
+    if (isSet)
+        s += "<label><input type='checkbox' name='clear_" + String(name) + "' value='1'> clear</label>";
+    return s + "<br>\n";
 }
 
 /* ── Unit conversion (config stores mmol/L internally) ────────── */
@@ -103,7 +109,7 @@ static void handleRoot() {
     // Nightscout
     html += "<h2>Nightscout</h2>";
     html += textInput("Nightscout URL", "nightscout", c.url, 127);
-    html += textInput("API Token", "token", c.token, 63);
+    html += passInput("API Token", "token", c.token);
     html += textInput("User Name", "name", c.userName, 31);
     html += textInput("Device Name", "device_name", c.deviceName, 31);
 

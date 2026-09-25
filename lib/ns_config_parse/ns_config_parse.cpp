@@ -191,12 +191,38 @@ static int wlanSlotFromKey(const char *key, bool *isPass) {
     return (idx >= 0 && idx < CFG_MAX_WLAN) ? idx : -1;
 }
 
+bool configIsSecretKey(const char *key) {
+    bool isPass;
+    if (wlanSlotFromKey(key, &isPass) >= 0)
+        return isPass;
+    return strcmp(key, "token") == 0 || strcmp(key, "ota_password") == 0 ||
+           strcmp(key, "web_pass") == 0;
+}
+
+static void clearSecret(ParsedConfig *cfg, const char *key) {
+    if (!configIsSecretKey(key))
+        return;
+    bool isPass;
+    int slot = wlanSlotFromKey(key, &isPass);
+    if (slot >= 0)
+        cfg->wlanpass[slot][0] = '\0';
+    else
+        applyConfigKey(cfg, key, "", 0);
+}
+
 void applyConfigForm(ParsedConfig *cfg, const ConfigKV *kv, int count) {
     int inputUnit = cfg->show_mgdl;
     cfg->configErrors   = 0;
     cfg->firstBadKey[0] = '\0';
     for (int i = 0; i < count; i++) {
         if (!kv[i].key || !kv[i].val) continue;
+        if (strncmp(kv[i].key, "clear_", 6) == 0) {
+            if (strcmp(kv[i].val, "1") == 0)
+                clearSecret(cfg, kv[i].key + 6);
+            continue;
+        }
+        if (kv[i].val[0] == '\0' && configIsSecretKey(kv[i].key))
+            continue;
         bool isPass;
         int slot = wlanSlotFromKey(kv[i].key, &isPass);
         if (slot >= 0) {

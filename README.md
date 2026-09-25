@@ -153,10 +153,14 @@ all** — the port stays closed rather than accepting unauthenticated firmware.
 Set it before relying on OTA; the `ota` build env passes it as `--auth`.
 
 `web_user` and `web_pass` together enable HTTP Basic auth on the config UI. With
-either unset there is no authentication, and anyone on your network can read the
-page — which contains your WiFi passwords and Nightscout token in cleartext.
-Basic auth over plain HTTP is weak, but it is the difference between needing a
-credential and needing nothing.
+either unset there is no authentication, and anyone on your network can change
+the config, reboot the device or play alarm sounds. Basic auth over plain HTTP
+is weak, but it is the difference between needing a credential and needing
+nothing.
+
+The page never shows a stored secret: the Nightscout token and Wi-Fi passwords
+appear as empty password fields marked "set" or "not set". Leave one blank to
+keep it; tick its "clear" box to remove it.
 
 ### Sections
 

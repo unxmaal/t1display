@@ -192,6 +192,75 @@ void test_web_auth_required_only_when_both_set(void) {
     TEST_ASSERT_TRUE(configWebAuthEnabled(&cfg));
 }
 
+void test_blank_secret_keeps_the_stored_one(void) {
+    configDefaults(&cfg);
+    strcpy(cfg.token, "stored-token");
+    strcpy(cfg.wlanpass[0], "stored-pass");
+    strcpy(cfg.otaPassword, "stored-ota");
+    strcpy(cfg.webPass, "stored-web");
+    const ConfigKV kv[] = {{"token", ""}, {"wlan_pass_1", ""},
+                           {"ota_password", ""}, {"web_pass", ""}};
+    applyForm(kv, 4);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("stored-token", cfg.token,
+        "the form never shows secrets, so a blank field means unchanged");
+    TEST_ASSERT_EQUAL_STRING("stored-pass", cfg.wlanpass[0]);
+    TEST_ASSERT_EQUAL_STRING("stored-ota", cfg.otaPassword);
+    TEST_ASSERT_EQUAL_STRING("stored-web", cfg.webPass);
+}
+
+void test_new_secret_replaces_the_stored_one(void) {
+    configDefaults(&cfg);
+    strcpy(cfg.token, "old");
+    strcpy(cfg.wlanpass[2], "old");
+    const ConfigKV kv[] = {{"token", "new"}, {"wlan_pass_3", "new"}};
+    applyForm(kv, 2);
+    TEST_ASSERT_EQUAL_STRING("new", cfg.token);
+    TEST_ASSERT_EQUAL_STRING("new", cfg.wlanpass[2]);
+}
+
+void test_clear_checkbox_empties_a_secret(void) {
+    configDefaults(&cfg);
+    strcpy(cfg.token, "old");
+    strcpy(cfg.wlanpass[1], "old");
+    strcpy(cfg.webPass, "old");
+    const ConfigKV kv[] = {{"token", ""}, {"clear_token", "1"},
+                           {"clear_wlan_pass_2", "1"}, {"clear_web_pass", "1"}};
+    applyForm(kv, 4);
+    TEST_ASSERT_EQUAL_STRING("", cfg.token);
+    TEST_ASSERT_EQUAL_STRING("", cfg.wlanpass[1]);
+    TEST_ASSERT_EQUAL_STRING("", cfg.webPass);
+}
+
+void test_clear_is_ignored_for_non_secrets_and_unchecked_boxes(void) {
+    configDefaults(&cfg);
+    strcpy(cfg.userName, "Eric");
+    strcpy(cfg.token, "keep");
+    const ConfigKV kv[] = {{"clear_name", "1"}, {"clear_token", "0"},
+                           {"clear_wlan_pass_99", "1"}};
+    applyForm(kv, 3);
+    TEST_ASSERT_EQUAL_STRING("Eric", cfg.userName);
+    TEST_ASSERT_EQUAL_STRING("keep", cfg.token);
+    TEST_ASSERT_EQUAL_INT(0, cfg.configErrors);
+}
+
+void test_blank_ssid_still_clears_the_network(void) {
+    configDefaults(&cfg);
+    strcpy(cfg.wlanssid[0], "home");
+    const ConfigKV kv[] = {{"wlan_ssid_1", ""}};
+    applyForm(kv, 1);
+    TEST_ASSERT_EQUAL_STRING("", cfg.wlanssid[0]);
+}
+
+void test_secret_key_predicate(void) {
+    TEST_ASSERT_TRUE(configIsSecretKey("token"));
+    TEST_ASSERT_TRUE(configIsSecretKey("ota_password"));
+    TEST_ASSERT_TRUE(configIsSecretKey("web_pass"));
+    TEST_ASSERT_TRUE(configIsSecretKey("wlan_pass_10"));
+    TEST_ASSERT_FALSE(configIsSecretKey("wlan_ssid_1"));
+    TEST_ASSERT_FALSE(configIsSecretKey("web_user"));
+    TEST_ASSERT_FALSE(configIsSecretKey("nightscout"));
+}
+
 int main(int argc, char **argv) {
     (void)argc; (void)argv;
     UNITY_BEGIN();
@@ -213,5 +282,11 @@ int main(int argc, char **argv) {
     RUN_TEST(test_ota_disabled_without_password);
     RUN_TEST(test_ota_enabled_with_password);
     RUN_TEST(test_web_auth_required_only_when_both_set);
+    RUN_TEST(test_blank_secret_keeps_the_stored_one);
+    RUN_TEST(test_new_secret_replaces_the_stored_one);
+    RUN_TEST(test_clear_checkbox_empties_a_secret);
+    RUN_TEST(test_clear_is_ignored_for_non_secrets_and_unchecked_boxes);
+    RUN_TEST(test_blank_ssid_still_clears_the_network);
+    RUN_TEST(test_secret_key_predicate);
     return UNITY_END();
 }
