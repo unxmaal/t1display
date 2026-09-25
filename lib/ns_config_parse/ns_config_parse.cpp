@@ -6,7 +6,9 @@
 
 #include "ns_config_parse.h"
 #include "ns_pure_logic.h"
+#include "ns_restart_schedule.h"
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -15,18 +17,26 @@
 
 /* ── Defaults ──────────────────────────────────────────────────── */
 
+static void defaultBands(ParsedConfig *cfg) {
+    cfg->yellow_low  = 4.5f;
+    cfg->yellow_high = 9.0f;
+    cfg->red_low     = 3.9f;
+    cfg->red_high    = 11.0f;
+}
+
+static void defaultAlarmThresholds(ParsedConfig *cfg) {
+    cfg->snd_alarm        = 3.0f;
+    cfg->snd_warning      = 3.7f;
+    cfg->snd_alarm_high   = 20.0f;
+    cfg->snd_warning_high = 14.0f;
+}
+
 void configDefaults(ParsedConfig *cfg) {
     *cfg = ParsedConfig{};
     strlcpy(cfg->deviceName, "t1display", sizeof(cfg->deviceName));
     cfg->timeZone          = 3600;
-    cfg->yellow_low        = 4.5f;
-    cfg->yellow_high       = 9.0f;
-    cfg->red_low           = 3.9f;
-    cfg->red_high          = 11.0f;
-    cfg->snd_alarm         = 3.0f;
-    cfg->snd_warning       = 3.7f;
-    cfg->snd_alarm_high    = 20.0f;
-    cfg->snd_warning_high  = 14.0f;
+    defaultBands(cfg);
+    defaultAlarmThresholds(cfg);
     cfg->snd_no_readings   = 20;
     cfg->snooze_timeout    = 30;
     cfg->alarm_repeat      = 5;
@@ -67,10 +77,22 @@ static bool parseIntIn(const char *val, long lo, long hi, int *out) {
     long v = strtol(val, &end, 10);
     if (end == val || errno == ERANGE)
         return false;
+    bool inRange = v >= lo && v <= hi;
     if (v < lo) v = lo;
     if (v > hi) v = hi;
     *out = (int)v;
-    return true;
+    return inRange;
+}
+
+static void configError(ParsedConfig *cfg, const char *what) {
+    if (cfg->configErrors++ == 0)
+        strlcpy(cfg->firstBadKey, what, sizeof(cfg->firstBadKey));
+}
+
+static void copyValue(ParsedConfig *cfg, const char *key, char *dst,
+                      size_t size, const char *val) {
+    if (strlcpy(dst, val, size) >= size)
+        configError(cfg, key);
 }
 
 /* ── Parsing ───────────────────────────────────────────────────── */
@@ -93,6 +115,10 @@ static bool applyGlucoseKey(ParsedConfig *cfg, const char *key, const char *val,
     float raw;
     if (parseFloatIn(val, lo, hi, &raw))
         *dst = mgdl ? raw / MGDL_PER_MMOL : raw;
+    else if (!mgdl && parseFloatIn(val, CFG_GLUCOSE_MAX, CFG_GLUCOSE_MAX * MGDL_PER_MMOL, &raw))
+        *dst = raw / MGDL_PER_MMOL;
+    else
+        configError(cfg, key);
     return true;
 }
 
@@ -120,7 +146,8 @@ static bool applyIntKey(ParsedConfig *cfg, const char *key, const char *val) {
     };
     for (unsigned i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
         if (strcmp(key, fields[i].name) == 0) {
-            parseIntIn(val, fields[i].lo, fields[i].hi, fields[i].dst);
+            if (!parseIntIn(val, fields[i].lo, fields[i].hi, fields[i].dst))
+                configError(cfg, key);
             return true;
         }
     }
@@ -128,25 +155,23 @@ static bool applyIntKey(ParsedConfig *cfg, const char *key, const char *val) {
 }
 
 static bool applyStringKey(ParsedConfig *cfg, const char *key, const char *val) {
-    if (strcmp(key, "nightscout") == 0)
-        strlcpy(cfg->url, val, sizeof(cfg->url));
-    else if (strcmp(key, "token") == 0)
-        strlcpy(cfg->token, val, sizeof(cfg->token));
-    else if (strcmp(key, "name") == 0)
-        strlcpy(cfg->userName, val, sizeof(cfg->userName));
-    else if (strcmp(key, "device_name") == 0)
-        strlcpy(cfg->deviceName, val, sizeof(cfg->deviceName));
-    else if (strcmp(key, "restart_at_time") == 0)
-        strlcpy(cfg->restart_at_time, val, sizeof(cfg->restart_at_time));
-    else if (strcmp(key, "ota_password") == 0)
-        strlcpy(cfg->otaPassword, val, sizeof(cfg->otaPassword));
-    else if (strcmp(key, "web_user") == 0)
-        strlcpy(cfg->webUser, val, sizeof(cfg->webUser));
-    else if (strcmp(key, "web_pass") == 0)
-        strlcpy(cfg->webPass, val, sizeof(cfg->webPass));
-    else
-        return false;
-    return true;
+    struct { const char *name; char *dst; size_t size; } fields[] = {
+        { "nightscout",      cfg->url,             sizeof(cfg->url) },
+        { "token",           cfg->token,           sizeof(cfg->token) },
+        { "name",            cfg->userName,        sizeof(cfg->userName) },
+        { "device_name",     cfg->deviceName,      sizeof(cfg->deviceName) },
+        { "restart_at_time", cfg->restart_at_time, sizeof(cfg->restart_at_time) },
+        { "ota_password",    cfg->otaPassword,     sizeof(cfg->otaPassword) },
+        { "web_user",        cfg->webUser,         sizeof(cfg->webUser) },
+        { "web_pass",        cfg->webPass,         sizeof(cfg->webPass) },
+    };
+    for (unsigned i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        if (strcmp(key, fields[i].name) == 0) {
+            copyValue(cfg, key, fields[i].dst, fields[i].size, val);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool applyConfigKey(ParsedConfig *cfg, const char *key, const char *val,
@@ -168,6 +193,8 @@ static int wlanSlotFromKey(const char *key, bool *isPass) {
 
 void applyConfigForm(ParsedConfig *cfg, const ConfigKV *kv, int count) {
     int inputUnit = cfg->show_mgdl;
+    cfg->configErrors   = 0;
+    cfg->firstBadKey[0] = '\0';
     for (int i = 0; i < count; i++) {
         if (!kv[i].key || !kv[i].val) continue;
         bool isPass;
@@ -196,7 +223,8 @@ int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg) {
             eol++;
 
         size_t lineLen = (size_t)(eol - p);
-        if (lineLen >= sizeof(lineBuf))
+        bool truncated = lineLen >= sizeof(lineBuf);
+        if (truncated)
             lineLen = sizeof(lineBuf) - 1;
         memcpy(lineBuf, p, lineLen);
         lineBuf[lineLen] = '\0';
@@ -211,47 +239,59 @@ int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg) {
         if (line[0] == '[') {
             char *close = strchr(line, ']');
             if (close) {
+                close[1] = '\0';
                 *close = '\0';
                 const char *section = line + 1;
-                if (strcmp(section, "config") == 0) {
+                if (strcasecmp(section, "config") == 0) {
                     currentWlan = -1;
-                } else if (strncmp(section, "wlan", 4) == 0) {
+                } else if (strncasecmp(section, "wlan", 4) == 0) {
                     int idx = atoi(section + 4) - 1;
                     currentWlan = (idx >= 0 && idx < CFG_MAX_WLAN) ? idx : -2;
                 } else {
                     currentWlan = -2;
                 }
+                *close = ']';
             } else {
                 currentWlan = -2;
             }
+            if (currentWlan == -2)
+                configError(cfg, line);
             continue;
         }
 
         char *eq = strchr(line, '=');
-        if (!eq)
+        if (!eq) {
+            if (truncated)
+                configError(cfg, "long line");
             continue;
+        }
 
         *eq = '\0';
         const char *key = trimWhitespace(line);
         const char *val = trimWhitespace(eq + 1);
+
+        if (truncated)
+            configError(cfg, key);
 
         if (currentWlan == -2)
             continue;
 
         if (currentWlan >= 0) {
             if (strcmp(key, "ssid") == 0) {
-                strlcpy(cfg->wlanssid[currentWlan], val, sizeof(cfg->wlanssid[currentWlan]));
+                copyValue(cfg, key, cfg->wlanssid[currentWlan], sizeof(cfg->wlanssid[currentWlan]), val);
                 parsed++;
             } else if (strcmp(key, "pass") == 0) {
-                strlcpy(cfg->wlanpass[currentWlan], val, sizeof(cfg->wlanpass[currentWlan]));
+                copyValue(cfg, key, cfg->wlanpass[currentWlan], sizeof(cfg->wlanpass[currentWlan]), val);
                 parsed++;
             } else {
                 cfg->unknownKeys++;
+                configError(cfg, key);
             }
         } else if (applyConfigKey(cfg, key, val, 0)) {
             parsed++;
         } else {
             cfg->unknownKeys++;
+            configError(cfg, key);
         }
     }
 
@@ -276,6 +316,25 @@ void validateConfig(ParsedConfig *cfg) {
     clampGlucose(&cfg->snd_alarm_high,  20.0f);
     clampGlucose(&cfg->snd_warning_high,14.0f);
 
+    if (!(cfg->red_low <= cfg->yellow_low && cfg->yellow_low < cfg->yellow_high &&
+          cfg->yellow_high <= cfg->red_high)) {
+        defaultBands(cfg);
+        configError(cfg, "thresholds");
+    }
+    if (!(cfg->snd_alarm <= cfg->snd_warning && cfg->snd_warning < cfg->snd_warning_high &&
+          cfg->snd_warning_high <= cfg->snd_alarm_high)) {
+        defaultAlarmThresholds(cfg);
+        configError(cfg, "thresholds");
+    }
+
+    if (cfg->restart_at_time[0] == '\0') {
+        strlcpy(cfg->restart_at_time, "NORES", sizeof(cfg->restart_at_time));
+    } else if (strcmp(cfg->restart_at_time, "NORES") != 0 &&
+               !restartTimeValid(cfg->restart_at_time)) {
+        strlcpy(cfg->restart_at_time, "NORES", sizeof(cfg->restart_at_time));
+        configError(cfg, "restart_at_time");
+    }
+
     cfg->timeZone = clampInt(cfg->timeZone, -43200, 50400);
     cfg->dst      = clampInt(cfg->dst, 0, 7200);
     cfg->time_format = clampInt(cfg->time_format, 0, 1);
@@ -296,6 +355,15 @@ void validateConfig(ParsedConfig *cfg) {
     cfg->snooze_timeout    = clampInt(cfg->snooze_timeout, 1, 1440);
     cfg->alarm_repeat      = clampInt(cfg->alarm_repeat, 0, 1440);
     cfg->snd_no_readings   = clampInt(cfg->snd_no_readings, 0, 1440);
+}
+
+void formatConfigErrors(const ParsedConfig *cfg, char *out, size_t outSize) {
+    if (cfg->configErrors == 0) {
+        out[0] = '\0';
+        return;
+    }
+    snprintf(out, outSize, "%d config error%s: %s", cfg->configErrors,
+             cfg->configErrors == 1 ? "" : "s", cfg->firstBadKey);
 }
 
 bool configOtaEnabled(const ParsedConfig *cfg) {

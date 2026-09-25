@@ -115,10 +115,25 @@ void test_empty_threshold_value_falls_back_to_default(void) {
 void test_out_of_range_threshold_rejected(void) {
     ParsedConfig cfg;
     configDefaults(&cfg);
-    size_t n = loadBuf("[config]\nsnd_alarm = 70\nred_low = 80\n");
+    size_t n = loadBuf("[config]\nsnd_alarm = 900\nred_low = 0.5\n");
     parseConfigBuffer(buf, n, &cfg);
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.0f, cfg.snd_alarm);
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.9f, cfg.red_low);
+    TEST_ASSERT_EQUAL_INT(2, cfg.configErrors);
+}
+
+void test_upstream_mgdl_thresholds_are_read_as_mgdl(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t n = loadBuf("[config]\nred_low = 70\nyellow_low = 80\nsnd_alarm = 55\n");
+    parseConfigBuffer(buf, n, &cfg);
+    TEST_ASSERT_EQUAL_FLOAT(70.0f / MGDL_PER_MMOL, cfg.red_low);
+    TEST_ASSERT_EQUAL_FLOAT(80.0f / MGDL_PER_MMOL, cfg.yellow_low);
+    TEST_ASSERT_EQUAL_FLOAT(55.0f / MGDL_PER_MMOL, cfg.snd_alarm);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_NORMAL,
+        alarmLevel(6.0f, cfg.snd_alarm, cfg.snd_warning, cfg.snd_alarm_high,
+                   cfg.snd_warning_high, 0, 20, false),
+        "an upstream mg/dL INI must not alarm on every reading");
 }
 
 void test_integer_overflow_rejected(void) {
@@ -156,6 +171,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_nan_threshold_cannot_silence_hypo);
     RUN_TEST(test_empty_threshold_value_falls_back_to_default);
     RUN_TEST(test_out_of_range_threshold_rejected);
+    RUN_TEST(test_upstream_mgdl_thresholds_are_read_as_mgdl);
     RUN_TEST(test_integer_overflow_rejected);
     RUN_TEST(test_restart_at_logged_errors_clamped);
     return UNITY_END();

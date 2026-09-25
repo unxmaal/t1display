@@ -13,17 +13,23 @@ void restartScheduleInit(RestartSchedule *s) {
     s->armed = true;
 }
 
-bool restartScheduleDue(RestartSchedule *s, const char *hhmm,
-                        int now_hour, int now_min) {
-    if (!hhmm || hhmm[0] == '\0' || strcmp(hhmm, "NORES") == 0)
+bool restartTimeValid(const char *hhmm) {
+    if (!hhmm)
         return false;
-
     int h, m;
     char extra;
     if (sscanf(hhmm, "%d:%d%c", &h, &m, &extra) != 2)
         return false;
-    if (h < 0 || h > 23 || m < 0 || m > 59)
+    return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
+
+bool restartScheduleDue(RestartSchedule *s, const char *hhmm,
+                        int now_hour, int now_min) {
+    if (!restartTimeValid(hhmm))
         return false;
+
+    int h, m;
+    sscanf(hhmm, "%d:%d", &h, &m);
 
     if (now_hour != h || now_min != m) {
         s->armed = true;

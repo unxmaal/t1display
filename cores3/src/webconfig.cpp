@@ -213,12 +213,19 @@ static void handleSave() {
         SD.end();
     }
 
+    char cfgErr[48];
+    formatConfigErrors(&c, cfgErr, sizeof(cfgErr));
+
     if (sdOk) {
-        server.send(200, "text/html",
+        String page =
             "<html><body style='background:#1a1a1a;color:#0f0;font-family:sans-serif;padding:20px'>"
-            "<h1>Saved</h1><p>Config written to SD card. Live config updated.</p>"
-            "<p>Some changes (WiFi, timezone) require a reboot to take effect.</p>"
-            "<a href='/' style='color:#0cf'>Back to config</a></body></html>");
+            "<h1>Saved</h1><p>Config written to SD card. Live config updated.</p>";
+        if (cfgErr[0])
+            page += "<p style='color:#ff0'>" + escapeHtml(cfgErr) +
+                    ". Rejected values were replaced with defaults.</p>";
+        page += "<p>Some changes (WiFi, timezone) require a reboot to take effect.</p>"
+                "<a href='/' style='color:#0cf'>Back to config</a></body></html>";
+        server.send(200, "text/html", page);
     } else {
         server.send(500, "text/html",
             "<html><body style='background:#1a1a1a;color:#f88;font-family:sans-serif;padding:20px'>"

@@ -16,6 +16,7 @@ There is no NVS/Preferences fallback and no bootstrap AP mode.
 - `snd_alarm`, `snd_warning`, `snd_alarm_high`, `snd_warning_high` — audio thresholds
 - `wlanssid[10][64]`, `wlanpass[10][64]`
 - `unknownKeys` — count of keys the parser did not recognize
+- `configErrors`, `firstBadKey` — everything that was not taken as written
 
 ## Units: thresholds are always mmol/L
 
@@ -23,14 +24,15 @@ There is no NVS/Preferences fallback and no bootstrap AP mode.
 All threshold fields are compared against mmol/L values in `glucoseColor()` and
 `alarmLevel()` regardless of `show_mgdl`.
 
-Upstream M5_NightscoutMon used the opposite convention (`show_mgdl = 1` meant all
-INI values were mg/dL). Any INI inherited from upstream will silently mis-trigger:
-mg/dL thresholds read as mmol/L make every normal reading look hypo. Never copy
-threshold values from an upstream INI.
+In the INI, a threshold above `CFG_GLUCOSE_MAX` (40) that fits the mg/dL range
+is converted, so upstream mg/dL INIs load correctly. `validateConfig()` enforces
+ordering on the colour bands and on the alarm thresholds, reverting a
+mis-ordered set to defaults.
 
 ## INI format
 
-Sections are `[config]` and `[wlan1]`–`[wlan10]` (`wlan1` maps to index 0).
+Sections are `[config]` and `[wlan1]`–`[wlan10]` (`wlan1` maps to index 0),
+matched case-insensitively.
 Values are unquoted; everything after the first `=` is taken verbatim after
 whitespace trimming. An SSID or password containing spaces needs no quotes —
 quoting it makes the quotes part of the value. Max 63 characters each.
@@ -41,6 +43,14 @@ quoting it makes the quotes part of the value. Max 63 characters each.
 recognize, in both `[config]` and `[wlan*]` sections. A correct INI parses with
 `unknownKeys == 0`. This is asserted against the shipped `SD/M5NS.INI` by
 `test/native/test_sample_ini/`.
+
+## Config errors
+
+Every rejection, clamp, truncation, unknown section or key, bad
+`restart_at_time` and threshold-order violation calls `configError()`.
+`formatConfigErrors()` renders the summary shown on the splash, the status page
+and the web save page. `applyConfigForm()` resets the count first. Never add a
+path that silently discards user input.
 
 ## Adding a new config field
 
