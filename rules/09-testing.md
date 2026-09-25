@@ -3,7 +3,7 @@
 ## Framework
 
 - **PlatformIO** with **Unity** test framework
-- Native tests run on macOS (no hardware needed)
+- Native tests run on the Linux host (no hardware needed)
 - Test env: `[env:native]` in `platformio.ini`
 
 ## Running Tests
@@ -12,36 +12,35 @@
 # All native tests
 pio test -e native
 
+# Sanitizers and static analysis, as CI runs them
+pio test -e native_asan
+TSAN_OPTIONS=halt_on_error=1 pio test -e native_tsan
+pio check -e native --fail-on-defect=medium
+
+# Coverage, gated in CI at 95% line and 78% branch over lib/
+pio test -e native_coverage && gcovr --root . --filter 'lib/' --print-summary
+
 # Single test suite
 pio test -e native -f native/test_units
 ```
 
 ## Architecture
 
-### Pure logic extraction
+### Pure logic lives in lib/
 
-All testable logic lives in `lib/ns_pure_logic/`:
-- `ns_pure_logic.h` — declarations with `extern "C"` linkage
-- `ns_pure_logic.cpp` — implementations using only standard C/C++ types
-
-Rules for `ns_pure_logic`:
-- **No Arduino headers** (`Arduino.h`, `M5Stack.h`, `WiFi.h`, etc.)
+Every testable piece lives in a `lib/<module>/` directory; see
+`rules/03-project-structure.md` for the list. Each module:
+- **No Arduino headers** (`Arduino.h`, `M5Unified.h`, `WiFi.h`, etc.)
 - **No Arduino types** (`String`, `IPAddress`, etc.) — use `char*`, `uint8_t[]`
-- **Standard C types only** (`uint16_t`, `size_t`, `const char*`, etc.)
+- **Standard C/C++ only**, `extern "C"` for plain functions; `ns_shared` is
+  header-only C++ templates
 - Compiles on both ESP32 (via PlatformIO) and host (native)
-
-### What goes in ns_pure_logic
-
-- String parsing and validation
-- Data format conversions
-- Configuration parsing helpers
-- Any pure function: same inputs → same outputs, no side effects
 
 ### What stays in cores3/src
 
 - Anything touching hardware (M5.Display, WiFi, SD, I2S)
 - Functions using Arduino-specific types as primary interface
-- setup/loop, web server, display drawing, alarm playback
+- setup/loop, task bodies, web server handlers, display drawing, alarm playback
 
 ## Test file layout
 
@@ -75,10 +74,12 @@ Each test suite goes in its own subdirectory under `test/native/`.
 
 ### PlatformIO `extends` syntax
 
-**Wrong:** `extends = base_esp32`
-**Right:** `extends = env:base_esp32`
+**Wrong:** `extends = m5stack-cores3`
+**Right:** `extends = env:m5stack-cores3`
 
-The `env:` prefix is required. Without it, PlatformIO throws `'No section: base_esp32'`. Same for variable interpolation: use `${env:base_esp32.lib_deps}`, not `${base_esp32.lib_deps}`.
+The `env:` prefix is required. Without it PlatformIO 6.2 does not error: the
+env silently inherits nothing and builds with defaults. Same for interpolation:
+`${env:m5stack-cores3.build_flags}`.
 
 ### Test suite directory structure
 
@@ -92,24 +93,15 @@ PlatformIO treats each subdirectory as a separate test suite. Flat `.cpp` files 
 **Wrong:** `build_src_filter = +<../ns_pure_logic.cpp>` or `-I.` flags to find root-level files.
 **Right:** Put shared code in `lib/<name>/` directory (e.g., `lib/ns_pure_logic/`).
 
-PlatformIO auto-discovers `lib/` for all environments including native. No extra config needed. Trying to pull in source files from the repo root via `build_src_filter` or `-I` flags is fragile and doesn't work reliably with relative paths for native builds.
+The root `platformio.ini` discovers `lib/` automatically; `cores3/` reaches it through `lib_extra_dirs = ../lib`. Trying to pull in source files from the repo root via `build_src_filter` or `-I` flags is fragile and doesn't work reliably with relative paths for native builds.
 
 ### Arduino String to char* for pure logic
 
-`lib/` must not see Arduino types. At a call site in `cores3/src/` that holds a `String`, use this pattern:
-
-```cpp
-{
-  size_t jsonLen = json.length();
-  char* jsonBuf = new char[jsonLen + 1];
-  json.toCharArray(jsonBuf, jsonLen + 1);
-  jsonLen = sanitizeJson(jsonBuf, jsonLen);
-  json = String(jsonBuf);
-  delete[] jsonBuf;
-}
-```
-
-The block scope ensures `jsonBuf` doesn't leak. The copy back to `String` is necessary because `sanitizeJson` may shorten the buffer (e.g., removing fractional date digits).
+`lib/` must not see Arduino types. At a `cores3/src/` call site holding a
+`String`, copy into a `char` buffer sized from `length() + 1` and pass that. See
+`httpGetSanitized()` in `nightscout.cpp`: it copies the response body, lets
+`sanitizeJson()` shorten it in place, and hands the buffer and new length to the
+parser.
 
 ### `const char*` tightening
 
@@ -121,6 +113,7 @@ When extracting functions, tighten `char*` params to `const char*` where the fun
 sample users are told to copy cannot drift from what the firmware accepts. It
 locates the file by trying relative paths and then falling back to a path
 derived from `__FILE__`, so it works regardless of the runner's directory.
+
 ### Installing PlatformIO without sudo
 
 This machine has no `pip` or `venv` module, so `pip install platformio` and

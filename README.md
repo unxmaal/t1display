@@ -71,7 +71,7 @@ snd_warning_high = 14.0
 snd_alarm_high = 20.0
 
 [wlan1]
-ssid = Your Network Name
+ssid = YourWiFiSSID
 pass = YourWiFiPassword
 ```
 
@@ -272,6 +272,11 @@ host lives in `lib/` and is compiled into both the firmware and the native tests
 - `lib/ns_json_parse/` — Nightscout API JSON parsing
 - `lib/ns_display_model/` — display layout as pure data structs
 - `lib/ns_config_parse/` — INI parsing, validation, and serialization
+- `lib/ns_url_build/` — Nightscout request URLs
+- `lib/ns_alarm_state/` — alarm repeat and snooze timing on `millis()`
+- `lib/ns_melody/` — non-blocking melody sequencer
+- `lib/ns_error_log/` — bounded fetch-error log and restart policy
+- `lib/ns_restart_schedule/` — daily restart at `restart_at_time`
 - `lib/ns_runtime/` — watchdog and HTTP timeout budget, network service start latch
 - `lib/ns_shared/` — `Guarded<T>` and `Exchange<Req, Resp>`, the locked handoffs between tasks
 - `test/native/` — Unity test suites, one directory per suite
@@ -280,7 +285,7 @@ host lives in `lib/` and is compiled into both the firmware and the native tests
 
 ## Testing
 
-15 native suites, 202 assertions, no hardware required:
+Every suite runs on the host with no hardware:
 
 ```bash
 pio test -e native

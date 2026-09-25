@@ -9,7 +9,7 @@ board conditionals.
 
 Everything is drawn into a full-screen `M5Canvas` and pushed once inside a
 `startWrite()`/`endWrite()` pair. The canvas is allocated from PSRAM via
-`setPsram(true)` — without it, 153,604 bytes come out of internal DMA-capable
+`setPsram(true)` — without it, 153,600 bytes come out of internal DMA-capable
 RAM, which lwIP, mbedTLS and every task stack compete for.
 
 Do not add dirty-rectangle or partial-update logic. At one push per redraw the

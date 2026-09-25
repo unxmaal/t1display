@@ -7,7 +7,7 @@ PlatformIO project. Firmware lives under `cores3/`; hardware-free logic lives in
 
 ```
 cores3/
-  platformio.ini        — CoreS3 firmware env + native env
+  platformio.ini        — m5stack-cores3 (release), wokwi, ota envs
   src/
     main.cpp            — setup(), loop(), SD config load, WiFi bring-up
     display.cpp         — screen rendering, touch zones, pages
@@ -23,12 +23,19 @@ lib/
   ns_pure_logic/        — glucose color, alarm levels, formatting, JSON sanitising
   ns_json_parse/        — Nightscout API JSON parsing (ArduinoJson)
   ns_display_model/     — display layout as pure data structs
-  ns_config_parse/      — INI parse, validate, serialize
+  ns_config_parse/      — INI parse, validate, serialize, config errors
+  ns_url_build/         — Nightscout request URLs
+  ns_alarm_state/       — alarm repeat and snooze timing
+  ns_melody/            — non-blocking melody sequencer
+  ns_error_log/         — fetch-error log and restart policy
+  ns_restart_schedule/  — daily restart latch
+  ns_runtime/           — watchdog budget, service start latch
+  ns_shared/            — Guarded<T>, Exchange<Req, Resp> for cross-task state
 test/native/            — Unity suites, one subdirectory per suite
 SD/M5NS.INI             — sample SD card config, covered by test_sample_ini
 rules/                  — project rules for Claude sessions
 tools/knowledge-server.py — knowledge MCP server
-platformio.ini          — root, native test env only
+platformio.ini          — root: native, native_asan, native_tsan, native_coverage
 README.md               — the only prose documentation in this repo
 ```
 
@@ -52,8 +59,9 @@ See `rules/09-testing.md` for test architecture and TDD workflow.
 **Firmware code** goes in `cores3/src/` with its header in `cores3/include/`.
 Every new source file needs the SPDX header block.
 
-**Pure logic** (no Arduino/hardware deps) goes in `lib/<name>/`. This is picked
-up by `lib_extra_dirs` for both the firmware and native test builds. Prefer
+**Pure logic** (no Arduino/hardware deps) goes in `lib/<name>/`. The root
+`platformio.ini` picks `lib/` up automatically; `cores3/platformio.ini` needs
+`lib_extra_dirs = ../lib`, which it has. Prefer
 putting logic here so it can be tested on the host.
 
 **Test suites** go in `test/native/<suite_name>/<suite_name>.cpp`. Each suite
