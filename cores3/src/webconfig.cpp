@@ -9,12 +9,13 @@
 #include "ns_config_parse.h"
 #include "ns_pure_logic.h"
 #include <WebServer.h>
-#include <SD.h>
 #include <M5Unified.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
 
-static WebServer server(80);
-static Config *cfgPtr = nullptr;
+static WebServer  server(80);
+static WebShared *shared = nullptr;
+static Config     view;
 
 /* ── HTML helpers ──────────────────────────────────────────────── */
 
@@ -61,7 +62,7 @@ static float toDisplay(float mmol, bool mgdl) {
 /* ── GET / — serve config form ─────────────────────────────────── */
 
 static void handleRoot() {
-    const Config &c = *cfgPtr;
+    const Config &c = view;
     String title = "t1display " + escapeHtml(c.deviceName);
     String html = "<!DOCTYPE html><html><head>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -80,12 +81,10 @@ static void handleRoot() {
 
     // System status (live, read-only)
     html += "<h2>System Status</h2>";
-    int batt = M5.Power.getBatteryLevel();
-    int mv   = M5.Power.getBatteryVoltage();
-    bool charging = M5.Power.isCharging();
+    PowerStatus power = shared->power->snapshot();
     html += "<div style='background:#222;padding:12px;border-radius:6px;font-family:monospace;margin-bottom:12px'>";
-    html += "Battery: " + String(batt) + "% (" + String(mv) + " mV)<br>";
-    html += "Charging: " + String(charging ? "Yes" : "No") + "<br>";
+    html += "Battery: " + String(power.pct) + "% (" + String(power.mv) + " mV)<br>";
+    html += "Charging: " + String(power.charging ? "Yes" : "No") + "<br>";
     html += "Free heap: " + String(ESP.getFreeHeap() / 1024) + " KB<br>";
     html += "Uptime: " + String(millis() / 60000) + " min<br>";
     html += "IP: " + WiFi.localIP().toString() + "<br>";
@@ -172,9 +171,14 @@ static void handleRoot() {
 
 /* ── POST /save — update config and write to SD ───────────────── */
 
-static void handleSave() {
-    Config &c = *cfgPtr;
+static void sendPage(int code, const char *colour, const String &body) {
+    server.send(code, "text/html",
+        String("<html><body style='background:#1a1a1a;color:") + colour +
+        ";font-family:sans-serif;padding:20px'>" + body +
+        "<a href='/' style='color:#0cf'>Back to config</a></body></html>");
+}
 
+static void handleSave() {
     int n = server.args();
     if (n > 128) n = 128;
 
@@ -188,51 +192,35 @@ static void handleSave() {
         kv[i].val = vals[i].c_str();
     }
 
-    applyConfigForm(&c, kv, n);
+    applyConfigForm(&view, kv, n);
 
-    // Serialize to INI and write to SD
-    char ini[4096];
-    int wrote = serializeConfigINI(&c, ini, sizeof(ini));
-
-    if (wrote <= 0) {
-        server.send(500, "text/html",
-            "<html><body style='background:#1a1a1a;color:#f88;font-family:sans-serif;padding:20px'>"
-            "<h1>Error</h1><p>Failed to serialize config.</p>"
-            "<a href='/' style='color:#0cf'>Back</a></body></html>");
+    if (!shared->save->submit(view)) {
+        sendPage(503, "#ff0", "<h1>Busy</h1><p>Another save is in progress. Try again.</p>");
         return;
     }
 
-    bool sdOk = false;
-    if (SD.begin(GPIO_NUM_4, SPI, 25000000)) {
-        File f = SD.open("/M5NS.INI", FILE_WRITE);
-        if (f) {
-            f.write(reinterpret_cast<const uint8_t*>(ini), static_cast<size_t>(wrote));
-            f.close();
-            sdOk = true;
-            Serial.printf("[WEBCONFIG] Wrote %d bytes to /M5NS.INI\n", wrote);
-        }
-        SD.end();
+    SaveResult r;
+    bool done = false;
+    for (int i = 0; i < 100 && !(done = shared->save->collect(&r)); i++) {
+        esp_task_wdt_reset();
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 
-    char cfgErr[48];
-    formatConfigErrors(&c, cfgErr, sizeof(cfgErr));
-
-    if (sdOk) {
-        String page =
-            "<html><body style='background:#1a1a1a;color:#0f0;font-family:sans-serif;padding:20px'>"
-            "<h1>Saved</h1><p>Config written to SD card. Live config updated.</p>";
-        if (cfgErr[0])
-            page += "<p style='color:#ff0'>" + escapeHtml(cfgErr) +
-                    ". Rejected values were replaced with defaults.</p>";
-        page += "<p>Some changes (WiFi, timezone) require a reboot to take effect.</p>"
-                "<a href='/' style='color:#0cf'>Back to config</a></body></html>";
-        server.send(200, "text/html", page);
+    if (!done) {
+        sendPage(504, "#ff0", "<h1>Pending</h1><p>The device has not confirmed the save yet. "
+                              "Reload the config page to check.</p>");
+    } else if (r.wrote <= 0) {
+        sendPage(500, "#f88", "<h1>Error</h1><p>Failed to serialize config.</p>");
+    } else if (!r.sdOk) {
+        sendPage(500, "#f88", "<h1>Warning</h1><p>Live config updated but SD card write failed.</p>"
+                              "<p>Changes will be lost on reboot.</p>");
     } else {
-        server.send(500, "text/html",
-            "<html><body style='background:#1a1a1a;color:#f88;font-family:sans-serif;padding:20px'>"
-            "<h1>Warning</h1><p>Live config updated but SD card write failed.</p>"
-            "<p>Changes will be lost on reboot.</p>"
-            "<a href='/' style='color:#0cf'>Back</a></body></html>");
+        String body = "<h1>Saved</h1><p>Config written to SD card. Live config updated.</p>";
+        if (r.errors[0])
+            body += "<p style='color:#ff0'>" + escapeHtml(r.errors) +
+                    ". Rejected values were replaced with defaults.</p>";
+        body += "<p>Some changes (WiFi, timezone) require a reboot to take effect.</p>";
+        sendPage(200, "#0f0", body);
     }
 }
 
@@ -249,29 +237,29 @@ static void handleReboot() {
 /* ── GET /test — play an alert sound for testing ──────────────── */
 
 static void handleTest() {
-    const Config &c = *cfgPtr;
     String t = server.arg("t");
-    if      (t == "lw") playLowWarning(c.warning_volume);
-    else if (t == "la") playLowAlarm(c.alarm_volume);
-    else if (t == "hw") playHighWarning(c.warning_volume);
-    else if (t == "ha") playHighAlarm(c.alarm_volume);
-    else if (t == "nr") playNoReadings(c.warning_volume);
+    if      (t == "lw") requestTestSound(ALARM_SOUND_LOW_WARNING);
+    else if (t == "la") requestTestSound(ALARM_SOUND_LOW_ALARM);
+    else if (t == "hw") requestTestSound(ALARM_SOUND_HIGH_WARNING);
+    else if (t == "ha") requestTestSound(ALARM_SOUND_HIGH_ALARM);
+    else if (t == "nr") requestTestSound(ALARM_SOUND_NO_READINGS);
     server.send(200, "text/plain", "OK");
 }
 
 /* ── Public API ────────────────────────────────────────────────── */
 
 static bool requireAuth() {
-    if (!configWebAuthEnabled(cfgPtr))
+    view = shared->cfg->snapshot();
+    if (!configWebAuthEnabled(&view))
         return true;
-    if (server.authenticate(cfgPtr->webUser, cfgPtr->webPass))
+    if (server.authenticate(view.webUser, view.webPass))
         return true;
     server.requestAuthentication();
     return false;
 }
 
-void setupWebConfig(Config *cfg) {
-    cfgPtr = cfg;
+void setupWebConfig(WebShared *state) {
+    shared = state;
     server.on("/", HTTP_GET, []() { if (requireAuth()) handleRoot(); });
     server.on("/save", HTTP_POST, []() { if (requireAuth()) handleSave(); });
     server.on("/reboot", HTTP_POST, []() { if (requireAuth()) handleReboot(); });

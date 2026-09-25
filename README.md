@@ -228,15 +228,18 @@ Hardware-dependent code lives in `cores3/`. Everything that can be tested on the
 host lives in `lib/` and is compiled into both the firmware and the native tests.
 
 - `cores3/src/` — CoreS3 firmware: display, WiFi, alerts, OTA, web config
-  - Nightscout fetches run on a dedicated FreeRTOS task pinned to core 0.
-    `NSinfo` and the error log are exchanged with the render loop under a
-    mutex, so a slow or wedged network request cannot stall touch input,
-    the snooze button, or alarm checks.
+  - Nightscout fetches and the web server each run on their own FreeRTOS
+    task on core 0, so a slow network request or browser cannot stall touch
+    input, the snooze button, or alarm checks on the core-1 loop.
+  - The loop owns the config, the SD card, the display and the speaker. Other
+    tasks read the config through a locked snapshot, submit saves and test
+    sounds as requests, and never touch the SPI bus or the speaker.
 - `lib/ns_pure_logic/` — glucose colour, alarm levels, formatting, JSON sanitising
 - `lib/ns_json_parse/` — Nightscout API JSON parsing
 - `lib/ns_display_model/` — display layout as pure data structs
 - `lib/ns_config_parse/` — INI parsing, validation, and serialization
 - `lib/ns_runtime/` — watchdog and HTTP timeout budget, network service start latch
+- `lib/ns_shared/` — `Guarded<T>` and `Exchange<Req, Resp>`, the locked handoffs between tasks
 - `test/native/` — Unity test suites, one directory per suite
 - `rules/` — project rules consumed by the knowledge MCP server
 - `tools/` — the knowledge MCP server itself
@@ -247,6 +250,9 @@ host lives in `lib/` and is compiled into both the firmware and the native tests
 
 ```bash
 pio test -e native
+pio test -e native_asan                      # address and undefined behaviour
+TSAN_OPTIONS=halt_on_error=1 pio test -e native_tsan   # data races
+pio check -e native --fail-on-defect=medium   # cppcheck
 ```
 
 New logic belongs in `lib/` with a matching suite in

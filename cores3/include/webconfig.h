@@ -9,7 +9,7 @@
 
 #include "config.h"
 
-void setupWebConfig(Config *cfg);
+void setupWebConfig(WebShared *state);
 void handleWebConfig();
 
 #endif

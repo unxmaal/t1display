@@ -31,6 +31,18 @@ Fetches run on a FreeRTOS task pinned to core 0. `NSinfo` and the error log are
 exchanged with the render loop under `nsMutex`, with the task operating on a
 scratch copy so a slow request never holds the lock.
 
+The web server runs on its own task (`webTask`, core 0). The loop task alone
+writes `cfg`, the SD card, the display and the speaker. Everything else goes
+through `lib/ns_shared/`:
+- `sharedCfg` (`Guarded<Config>`) is the snapshot nsTask and the web task read.
+- `saveExchange` (`Exchange<Config, SaveResult>`) carries a web save to the
+  loop, which applies it, writes the SD card and replies.
+- `powerStatus` is published by the loop so the web page never touches I2C.
+- `requestTestSound()` queues a test melody for `serviceAlerts()`.
+
+Never read the global `cfg` or touch SD, the display or the speaker from any
+task but the loop. `test_shared` runs under `native_tsan`.
+
 Never call `readNightscout()` from `loop()`. Blocking the loop stops touch
 input, the snooze button and alarm checks.
 
