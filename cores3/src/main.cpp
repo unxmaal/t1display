@@ -38,7 +38,8 @@ static TaskHandle_t      webTaskH    = nullptr;
 static Guarded<Config>              sharedCfg;
 static Exchange<Config, SaveResult> saveExchange;
 static Guarded<PowerStatus>         powerStatus;
-static WebShared webShared = { &sharedCfg, &saveExchange, &powerStatus };
+static Guarded<ErrorLog>            errorSnapshot;
+static WebShared webShared = { &sharedCfg, &saveExchange, &powerStatus, &errorSnapshot };
 static volatile bool     nsFetchRequested = false;
 static AlarmState alarmState;
 static RestartSchedule restartSched;
@@ -259,7 +260,7 @@ static void serviceConfigSave() {
     saveExchange.reply(r);
 }
 
-static void publishPowerStatus() {
+static void publishStatus() {
     static uint32_t lastMs = 0;
     uint32_t now = millis();
     if (lastMs != 0 && now - lastMs < 5000)
@@ -268,6 +269,11 @@ static void publishPowerStatus() {
     powerStatus.publish(PowerStatus{ M5.Power.getBatteryLevel(),
                                      M5.Power.getBatteryVoltage(),
                                      M5.Power.isCharging() });
+
+    xSemaphoreTake(nsMutex, portMAX_DELAY);
+    ErrorLog snap = errLog;
+    xSemaphoreGive(nsMutex);
+    errorSnapshot.publish(snap);
 }
 
 static void webTask(void *) {
@@ -300,6 +306,7 @@ void setup() {
     sharedCfg.attach(sharedLock);
     saveExchange.attach(sharedLock);
     powerStatus.attach(sharedLock);
+    errorSnapshot.attach(sharedLock);
     esp_task_wdt_init(NS_WDT_TIMEOUT_SEC, true);
     auto m5cfg = M5.config();
     M5.begin(m5cfg);
@@ -370,7 +377,7 @@ void setup() {
     Serial.println("[DISPLAY] Splash screen drawn");
 
     sharedCfg.publish(cfg);
-    publishPowerStatus();
+    publishStatus();
     connectWiFi();
 
     servicesLatchInit(&services);
@@ -408,7 +415,7 @@ void loop() {
         handleOTA();
     }
     serviceConfigSave();
-    publishPowerStatus();
+    publishStatus();
 
     // Button A (left touch zone): cycle brightness
     if (M5.BtnA.wasPressed()) {

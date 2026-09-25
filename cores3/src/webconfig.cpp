@@ -8,6 +8,8 @@
 #include "alerts.h"
 #include "ns_config_parse.h"
 #include "ns_pure_logic.h"
+#include "ns_display_model.h"
+#include <time.h>
 #include <WebServer.h>
 #include <M5Unified.h>
 #include <WiFi.h>
@@ -95,6 +97,24 @@ static void handleRoot() {
     html += "Uptime: " + String(millis() / 60000) + " min<br>";
     html += "IP: " + WiFi.localIP().toString() + "<br>";
     html += "</div>";
+
+    // Error log
+    NsErrorLog log = shared->errors->snapshot();
+    int held = nsErrorLogHeld(&log);
+    html += "<h2>Error Log</h2><div style='background:#222;padding:12px;border-radius:6px;"
+            "font-family:monospace;margin-bottom:12px'>";
+    if (held == 0)
+        html += "no errors in log<br>";
+    for (int i = 0; i < held; i++) {
+        time_t ts = (time_t)nsErrorLogTimeAt(&log, i);
+        struct tm local;
+        const struct tm *et = ts ? localtime_r(&ts, &local) : NULL;
+        char date[16], desc[32];
+        formatLogDate(date, sizeof(date), et, c.date_format, c.time_format);
+        describeErrorCode(nsErrorLogCodeAt(&log, i), desc, sizeof(desc));
+        html += String(date) + "&nbsp;&nbsp;" + escapeHtml(desc) + "<br>";
+    }
+    html += "Total errors: " + String((unsigned long)log.total) + "</div>";
 
     // Alert test buttons
     html += "<h2>Test Alerts</h2>"

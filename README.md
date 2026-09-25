@@ -100,6 +100,13 @@ no-readings alert instead of a low alarm.
 
 mg/dL and mmol/L convert at 18.01559, the factor Nightscout uses.
 
+### Clock and dates
+
+`time_format = 0` shows 24-hour time, `1` shows 12-hour (`1:07p`).
+`date_format = 0` writes error-log dates day first (`03.04`), `1` month first
+(`04/03`). An error logged before the clock synced shows `no clock`.
+`default_page` picks the page shown at boot: 0 glucose, 1 error log, 2 system.
+
 ### Trend arrows
 
 One arrow for the usual Nightscout directions. `TripleUp` and `TripleDown`, the
@@ -177,7 +184,7 @@ Anything the device could not take as written counts as a config error:
 - a threshold set out of order (reverts to defaults).
 
 The count and the first offending key appear in yellow on the boot splash, on the
-status page, over serial, and on the page shown after a web save, e.g.
+system page, over serial, and on the page shown after a web save, e.g.
 `2 config errors: red_hihg`. A web save clears errors from the file it replaced.
 
 ## Touch controls
@@ -191,7 +198,7 @@ the error badge and the battery icon, so both stay visible.
 |------|--------|
 | Left third | Cycle brightness |
 | Centre third | Snooze alarms |
-| Right third | Switch page |
+| Right third | Switch page: glucose → error log → system |
 
 Snooze lasts `snooze_timeout` minutes (at least 1) and covers only the alarm you
 snoozed and milder ones in the same direction. Snoozing a low never silences a

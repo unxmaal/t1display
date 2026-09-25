@@ -11,7 +11,7 @@
 
 /* ── Error code → description ──────────────────────────────────── */
 
-static void errorCodeToString(int code, char *buf, size_t bufsize) {
+void describeErrorCode(int code, char *buf, size_t bufsize) {
     switch (code) {
         case 1001: strlcpy(buf, "JSON parse failed", bufsize); break;
         case 1002: strlcpy(buf, "No data from NS", bufsize); break;
@@ -60,13 +60,13 @@ void buildGlucoseModel(
     float yellow_low, float yellow_high,
     float red_low, float red_high,
     int alarm_level, int snooze_remaining_sec,
-    int battery_pct, int error_count
+    int battery_pct, int error_count,
+    int time_format
 ) {
     memset(model, 0, sizeof(*model));
 
     /* Time */
-    snprintf(model->time_str, sizeof(model->time_str), "%02d:%02d",
-             time_hour, time_min);
+    formatClock(model->time_str, sizeof(model->time_str), time_hour, time_min, time_format);
 
     /* Glucose */
     model->glucose_font = formatGlucose(model->glucose_str,
@@ -171,7 +171,7 @@ void buildStatusModel(
     for (int i = 0; i < model->display_count; i++) {
         strlcpy(model->errors[i].date_str, err_dates[i],
                 sizeof(model->errors[i].date_str));
-        errorCodeToString(err_codes[i], model->errors[i].desc_str,
+        describeErrorCode(err_codes[i], model->errors[i].desc_str,
                           sizeof(model->errors[i].desc_str));
         model->errors[i].color = (err_codes[i] < 0) ? COLOR_RED : COLOR_YELLOW;
     }

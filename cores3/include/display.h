@@ -11,8 +11,9 @@
 
 /* Number of pages */
 #define PAGE_GLUCOSE  0
-#define PAGE_STATUS   1
-#define NUM_PAGES     2
+#define PAGE_ERRORS   1
+#define PAGE_SYSTEM   2
+#define NUM_PAGES     3
 
 /**
  * Allocate offscreen canvas for flicker-free rendering.
@@ -27,11 +28,11 @@ void initCanvas();
 void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog,
                      int snoozeRemainingSec);
 
-/**
- * Draw the error log / status screen.
- * Shows: error history, heap, uptime, IP, version.
- */
-void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog);
+/** Every held error, newest first, with its date in the configured format. */
+void drawErrorPage(const Config &cfg, const ErrorLog &errLog);
+
+/** Heap, uptime, IP, version and any config errors. */
+void drawSystemPage(const Config &cfg, const ErrorLog &errLog);
 
 /**
  * Draw the current page based on page number.

@@ -143,6 +143,22 @@ int alarmLevel(float sgv, float snd_alarm, float snd_warning,
 int formatGlucose(char *buf, size_t bufsize,
                   float sgv_mmol, float sgv_mgdl, bool show_mgdl);
 
+/* ── Clock and date formatting ─────────────────────────────────── */
+
+#define TIME_FORMAT_24H 0
+#define TIME_FORMAT_12H 1
+#define DATE_FORMAT_DAY_FIRST   0
+#define DATE_FORMAT_MONTH_FIRST 1
+
+struct tm;
+
+/** "HH:MM" (24 h) or "h:MMa"/"h:MMp" (12 h). */
+void formatClock(char *buf, size_t bufsize, int hour, int min, int time_format);
+
+/** "DD.MM HH:MM" or "MM/DD HH:MM" in the chosen clock; "no clock" for NULL. */
+void formatLogDate(char *buf, size_t bufsize, const struct tm *t,
+                   int date_format, int time_format);
+
 /* ── Uptime formatting ─────────────────────────────────────────── */
 
 /**

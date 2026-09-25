@@ -128,10 +128,10 @@ static bool applyIntKey(ParsedConfig *cfg, const char *key, const char *val) {
         { "dst",                      &cfg->dst,                          0,  7200 },
         { "show_mgdl",                &cfg->show_mgdl,                    0,     1 },
         { "show_current_time",        &cfg->show_current_time,            0,     1 },
-        { "default_page",             &cfg->default_page,                 0,     1 },
+        { "default_page",             &cfg->default_page,                 0,     2 },
         { "sgv_only",                 &cfg->sgv_only,                     0,     1 },
         { "info_line",                &cfg->info_line,                    0,     1 },
-        { "date_format",              &cfg->date_format,                  0,     3 },
+        { "date_format",              &cfg->date_format,                  0,     1 },
         { "time_format",              &cfg->time_format,                  0,     1 },
         { "snd_no_readings",          &cfg->snd_no_readings,              0,  1440 },
         { "snooze_timeout",           &cfg->snooze_timeout,               1,  1440 },
@@ -371,8 +371,8 @@ void validateConfig(ParsedConfig *cfg) {
     cfg->sgv_only          = clampInt(cfg->sgv_only, 0, 1);
     cfg->info_line         = clampInt(cfg->info_line, 0, 1);
     cfg->snd_loop_error    = clampInt(cfg->snd_loop_error, 0, 1);
-    cfg->default_page      = clampInt(cfg->default_page, 0, 1);
-    cfg->date_format       = clampInt(cfg->date_format, 0, 3);
+    cfg->default_page      = clampInt(cfg->default_page, 0, 2);
+    cfg->date_format       = clampInt(cfg->date_format, 0, 1);
     cfg->brightness1       = clampInt(cfg->brightness1, 0, 100);
     cfg->brightness2       = clampInt(cfg->brightness2, 0, 100);
     cfg->brightness3       = clampInt(cfg->brightness3, 0, 100);

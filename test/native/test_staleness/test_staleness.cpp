@@ -17,7 +17,7 @@ static void build(long now_sec, long sensor_sec) {
         now_sec, sensor_sec,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NORMAL, 0,
-        80, 0);
+        80, 0, 0);
 }
 
 void test_fresh_reading_is_fresh(void) {
@@ -110,7 +110,7 @@ static void buildSgv(float mgdl) {
         10000, 10000,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NO_READINGS, 0,
-        80, 0);
+        80, 0, 0);
 }
 
 void test_sensor_error_code_is_not_displayed_as_a_value(void) {
@@ -132,7 +132,7 @@ void test_stale_sensor_error_code_is_not_displayed_as_a_value(void) {
         10000 + 15 * 60, 10000,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NO_READINGS, 0,
-        80, 0);
+        80, 0, 0);
     TEST_ASSERT_EQUAL_STRING("--.-", m.glucose_str);
     TEST_ASSERT_EQUAL_STRING("SENSOR ERROR", m.banner_str);
 }
