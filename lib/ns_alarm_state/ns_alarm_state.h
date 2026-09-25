@@ -63,6 +63,9 @@ void alarmRecordFired(AlarmSchedule *s, uint32_t nowMs);
 
 int alarmSound(int level);
 
+/** True when a sound plays at alarm_volume rather than warning_volume. */
+bool alarmSoundUsesAlarmVolume(int sound);
+
 #ifdef __cplusplus
 }
 #endif

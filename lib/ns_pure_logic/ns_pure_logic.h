@@ -79,6 +79,7 @@ int sensorAgeMinutes(long now_sec, long sensor_sec);
 
 #define MGDL_PER_MMOL 18.01559f
 #define SGV_MIN_VALID_MGDL 39.0f
+#define SGV_MAX_VALID_MGDL 401.0f
 
 /**
  * True when an sgv (mmol/L) is a CGM error code rather than a reading.
@@ -115,10 +116,11 @@ int glucoseColor(float sgv, float yellow_low, float yellow_high,
 /**
  * Determine the alarm level from glucose value + config thresholds.
  * Mirrors the priority chain in handleAlarmsInfoLine():
- *   0. No readings   (sgvIsSensorError)
+ *   0. At or below SGV_MIN_VALID_MGDL (error codes included): low alarm,
+ *      or no readings if no reading has ever arrived (age unknown)
  *   1. Low alarm   (sgv <= snd_alarm)
  *   2. Low warning  (sgv <= snd_warning)
- *   3. High alarm   (sgv >= snd_alarm_high)
+ *   3. High alarm   (sgv >= snd_alarm_high, or >= SGV_MAX_VALID_MGDL)
  *   4. High warning  (sgv >= snd_warning_high)
  *   5. No readings   (sensor_age_min >= snd_no_readings)
  *   6. Loop error    (has_loop_error)

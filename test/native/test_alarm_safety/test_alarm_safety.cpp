@@ -22,35 +22,60 @@ static int levelFor(float sgv, unsigned age) {
     return alarmLevel(sgv, A_LO, W_LO, A_HI, W_HI, age, NO_READ, false);
 }
 
-void test_fresh_zero_sgv_is_not_normal(void) {
-    TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_NO_READINGS, levelFor(0.0f, 0),
-        "a fresh sgv of 0 must not be reported as a normal reading");
+void test_fresh_zero_sgv_alarms(void) {
+    TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_LOW_ALARM, levelFor(0.0f, 0),
+        "a sensor that errors must alarm; the finger-stick decides if it was real");
 }
 
-void test_fresh_dexcom_sentinel_one_is_not_normal(void) {
-    TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_NO_READINGS, levelFor(1.0f / MGDL_PER_MMOL, 0),
-        "a fresh Dexcom sentinel of 1 mg/dL must not be reported as normal");
+void test_fresh_dexcom_sentinel_one_alarms(void) {
+    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_LOW_ALARM, levelFor(1.0f / MGDL_PER_MMOL, 0));
 }
 
-void test_fresh_negative_sgv_is_not_normal(void) {
-    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_NO_READINGS, levelFor(-5.0f, 0));
+void test_fresh_negative_sgv_alarms(void) {
+    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_LOW_ALARM, levelFor(-5.0f, 0));
 }
 
-void test_stale_zero_sgv_still_no_readings(void) {
-    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_NO_READINGS, levelFor(0.0f, 25));
+void test_nan_sgv_alarms(void) {
+    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_LOW_ALARM, levelFor(NAN, 0));
+}
+
+void test_stale_error_code_still_alarms(void) {
+    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_LOW_ALARM, levelFor(0.0f, 25));
+}
+
+void test_never_received_a_reading_is_no_readings(void) {
+    TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_NO_READINGS, levelFor(0.0f, SENSOR_AGE_UNKNOWN),
+        "before the first fetch there is no reading to call low");
 }
 
 void test_real_hypo_still_alarms(void) {
     TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_LOW_ALARM, levelFor(2.5f, 0));
 }
 
-void test_dexcom_error_codes_are_no_readings(void) {
+void test_dexcom_error_codes_alarm_low(void) {
     const float codes[] = {2, 3, 5, 9, 10, 12, 38};
     for (size_t i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
-        TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_NO_READINGS,
+        TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_LOW_ALARM,
             levelFor(codes[i] / MGDL_PER_MMOL, 0),
-            "an sgv below 39 mg/dL is a sensor error code, not a hypo");
+            "below the sensor's floor is a serious problem: alarm");
     }
+}
+
+void test_sensor_floor_alarms_whatever_the_threshold(void) {
+    int level = alarmLevel(39.0f / MGDL_PER_MMOL, 1.0f, 1.0f, A_HI, W_HI, 0, NO_READ, false);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_LOW_ALARM, level,
+        "a low threshold set below 39 mg/dL must not silence Dexcom LOW");
+}
+
+void test_sensor_ceiling_alarms_whatever_the_threshold(void) {
+    int level = alarmLevel(401.0f / MGDL_PER_MMOL, A_LO, W_LO, 40.0f, 40.0f, 0, NO_READ, false);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(ALARM_LEVEL_HIGH_ALARM, level,
+        "Dexcom HIGH must alarm even with the high thresholds at their maximum");
+}
+
+void test_below_the_ceiling_follows_the_thresholds(void) {
+    int level = alarmLevel(400.0f / MGDL_PER_MMOL, A_LO, W_LO, 40.0f, 40.0f, 0, NO_READ, false);
+    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_NORMAL, level);
 }
 
 void test_dexcom_low_reading_of_39_alarms(void) {
@@ -156,12 +181,17 @@ void test_restart_at_logged_errors_clamped(void) {
 int main(int argc, char **argv) {
     (void)argc; (void)argv;
     UNITY_BEGIN();
-    RUN_TEST(test_fresh_zero_sgv_is_not_normal);
-    RUN_TEST(test_fresh_dexcom_sentinel_one_is_not_normal);
-    RUN_TEST(test_fresh_negative_sgv_is_not_normal);
-    RUN_TEST(test_stale_zero_sgv_still_no_readings);
+    RUN_TEST(test_fresh_zero_sgv_alarms);
+    RUN_TEST(test_fresh_dexcom_sentinel_one_alarms);
+    RUN_TEST(test_fresh_negative_sgv_alarms);
+    RUN_TEST(test_nan_sgv_alarms);
+    RUN_TEST(test_stale_error_code_still_alarms);
+    RUN_TEST(test_never_received_a_reading_is_no_readings);
     RUN_TEST(test_real_hypo_still_alarms);
-    RUN_TEST(test_dexcom_error_codes_are_no_readings);
+    RUN_TEST(test_dexcom_error_codes_alarm_low);
+    RUN_TEST(test_sensor_floor_alarms_whatever_the_threshold);
+    RUN_TEST(test_sensor_ceiling_alarms_whatever_the_threshold);
+    RUN_TEST(test_below_the_ceiling_follows_the_thresholds);
     RUN_TEST(test_dexcom_low_reading_of_39_alarms);
     RUN_TEST(test_sensor_error_predicate);
     RUN_TEST(test_normal_reading_unaffected);

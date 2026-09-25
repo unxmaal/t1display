@@ -118,3 +118,8 @@ int alarmSound(int level) {
         default:                       return ALARM_SOUND_NONE;
     }
 }
+
+bool alarmSoundUsesAlarmVolume(int sound) {
+    return sound == ALARM_SOUND_LOW_ALARM || sound == ALARM_SOUND_HIGH_ALARM ||
+           sound == ALARM_SOUND_NO_READINGS;
+}

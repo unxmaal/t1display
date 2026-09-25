@@ -94,9 +94,15 @@ server, or a timestamp more than 2 minutes in the future — is treated as no da
 rather than assumed fresh. A fast phone clock on the uploader would otherwise keep
 a dead feed looking live.
 
-An sgv below 39 mg/dL is a CGM error code (sensor warm-up, `???`, signal loss),
-not a reading. It shows `--.-` with a `SENSOR ERROR` banner and raises the
-no-readings alert instead of a low alarm.
+The sensor's range limits always alarm, whatever the thresholds are set to:
+- **39 mg/dL or below** (Dexcom LOW), including the error codes Dexcom sends as
+  values under 39, is a low alarm. Error codes show `--.-` with a `SENSOR ERROR`
+  banner instead of a fake number.
+- **401 mg/dL or above** (Dexcom HIGH) is a high alarm.
+
+Either one may be a false alarm. Check with a finger-stick. Lost data (no
+readings) also plays at `alarm_volume`. Only before the very first reading
+arrives does the device give the no-readings alert rather than a low alarm.
 
 mg/dL and mmol/L convert at 18.01559, the factor Nightscout uses.
 
