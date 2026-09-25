@@ -58,8 +58,22 @@ int directionToAngle(const char* direction) {
         return -75;
     if (strcmp(direction, "DoubleUp") == 0 || strcmp(direction, "DOUBLE_UP") == 0)
         return -90;
+    if (strcmp(direction, "TripleUp") == 0 || strcmp(direction, "TRIPLE_UP") == 0)
+        return -90;
+    if (strcmp(direction, "TripleDown") == 0 || strcmp(direction, "TRIPLE_DOWN") == 0)
+        return 90;
 
     return 180;  // NONE, NOT COMPUTABLE, unknown
+}
+
+int directionArrowStyle(const char* direction) {
+    if (direction == NULL)
+        return ARROW_NONE;
+    if (strcmp(direction, "RATE OUT OF RANGE") == 0 || strcmp(direction, "RATE_OUT_OF_RANGE") == 0)
+        return ARROW_RATE_OUT_OF_RANGE;
+    if (strncmp(direction, "Triple", 6) == 0 || strncmp(direction, "TRIPLE_", 7) == 0)
+        return ARROW_DOUBLE;
+    return directionToAngle(direction) == 180 ? ARROW_NONE : ARROW_SINGLE;
 }
 
 /* ── Snooze packet helpers ──────────────────────────────────────── */
@@ -101,7 +115,7 @@ size_t sanitizeJson(char* buf, size_t len) {
     }
 
     // 2. Replace problematic unicode escape sequences
-    const char* escapes[] = { "\\u0000", "\\u000b", "\\u0032" };
+    const char* escapes[] = { "\\u0000", "\\u000b", "\\u0002" };
     for (int e = 0; e < 3; e++) {
         size_t i = 0;
         while (i + 5 < len) {

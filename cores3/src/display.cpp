@@ -208,7 +208,15 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
         arrowY = 18;
     else
         arrowY = 30;
-    drawArrow(280, arrowY, 10, model.arrow_angle, mapColor(model.arrow_color));
+    uint16_t arrowColor = mapColor(model.arrow_color);
+    if (model.arrow_style == ARROW_RATE_OUT_OF_RANGE) {
+        drawArrow(280, 18, 10, -90, arrowColor);
+        drawArrow(280, 18, 10, 90, arrowColor);
+    } else if (model.arrow_style != ARROW_NONE) {
+        drawArrow(280, arrowY, 10, model.arrow_angle, arrowColor);
+        if (model.arrow_style == ARROW_DOUBLE)
+            drawArrow(296, arrowY, 10, model.arrow_angle, arrowColor);
+    }
 
     // Sensor staleness
     if (model.show_age) {

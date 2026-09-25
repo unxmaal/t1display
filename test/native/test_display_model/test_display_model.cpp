@@ -155,6 +155,42 @@ void test_glucose_model_double_digit_mmol(void) {
 
 /* ── StatusPageModel tests ─────────────────────────────────────── */
 
+static void buildDir(GlucosePageModel *m, const char *dir, long age_sec) {
+    buildGlucoseModel(m,
+        7.5f, 135.0f, false,
+        dir, directionToAngle(dir), "+0.1",
+        14, 30,
+        1709312400 + age_sec, 1709312400,
+        4.5f, 9.0f, 3.9f, 11.0f,
+        ALARM_LEVEL_NORMAL, 0,
+        80, 0);
+}
+
+void test_glucose_model_triple_trend_draws_double_arrow(void) {
+    GlucosePageModel m;
+    buildDir(&m, "TripleUp", 0);
+    TEST_ASSERT_EQUAL_INT(ARROW_DOUBLE, m.arrow_style);
+    TEST_ASSERT_EQUAL_INT(-90, m.arrow_angle);
+}
+
+void test_glucose_model_rate_out_of_range_has_its_own_glyph(void) {
+    GlucosePageModel m;
+    buildDir(&m, "RATE OUT OF RANGE", 0);
+    TEST_ASSERT_EQUAL_INT(ARROW_RATE_OUT_OF_RANGE, m.arrow_style);
+}
+
+void test_glucose_model_ordinary_trend_is_single(void) {
+    GlucosePageModel m;
+    buildDir(&m, "Flat", 0);
+    TEST_ASSERT_EQUAL_INT(ARROW_SINGLE, m.arrow_style);
+}
+
+void test_glucose_model_no_data_hides_arrow(void) {
+    GlucosePageModel m;
+    buildDir(&m, "TripleUp", 40 * 60);
+    TEST_ASSERT_EQUAL_INT(ARROW_NONE, m.arrow_style);
+}
+
 void test_status_model_no_errors(void) {
     StatusPageModel m;
     buildStatusModel(&m,
@@ -239,6 +275,10 @@ int main(int argc, char **argv) {
     RUN_TEST(test_glucose_model_double_digit_mmol);
 
     /* Status model */
+    RUN_TEST(test_glucose_model_triple_trend_draws_double_arrow);
+    RUN_TEST(test_glucose_model_rate_out_of_range_has_its_own_glyph);
+    RUN_TEST(test_glucose_model_ordinary_trend_is_single);
+    RUN_TEST(test_glucose_model_no_data_hides_arrow);
     RUN_TEST(test_status_model_no_errors);
     RUN_TEST(test_status_model_with_errors);
     RUN_TEST(test_status_model_null_errors_no_crash);

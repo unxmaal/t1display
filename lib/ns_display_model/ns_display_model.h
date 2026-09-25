@@ -57,6 +57,7 @@ struct GlucosePageModel {
 
     /* Trend arrow */
     int  arrow_angle;         // degrees, 180 = hidden
+    int  arrow_style;         // ARROW_*
     int  arrow_color;         // same as glucose_color
 
     /* Sensor staleness */

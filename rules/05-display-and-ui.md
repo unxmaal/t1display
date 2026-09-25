@@ -49,3 +49,10 @@ looks current is the failure mode that hurts someone.
 `M5.setTouchButtonHeight(40)` maps the bottom band to BtnA/B/C — left cycles
 brightness, centre snoozes, right switches page. Use M5Unified's mapping; do not
 hand-roll `setRawState()` calls.
+
+## Trend arrows
+
+`directionArrowStyle()` picks `ARROW_NONE`, `ARROW_SINGLE`, `ARROW_DOUBLE`
+(Triple*) or `ARROW_RATE_OUT_OF_RANGE`. `buildGlucoseModel()` sets
+`arrow_style` and forces `ARROW_NONE` for no-data and sensor-error states. Never
+let an unrecognised direction share the rendering of a known one.

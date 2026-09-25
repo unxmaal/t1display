@@ -17,6 +17,18 @@ void test_existing_scheme_preserved(void) {
     TEST_ASSERT_EQUAL_STRING("http://ns.example.com", url);
 }
 
+void test_upper_case_scheme_is_not_doubled(void) {
+    nsBuildBaseUrl(url, sizeof(url), "HTTPS://ns.example.com");
+    TEST_ASSERT_EQUAL_STRING("https://ns.example.com", url);
+    nsBuildBaseUrl(url, sizeof(url), "Http://ns.example.com");
+    TEST_ASSERT_EQUAL_STRING("http://ns.example.com", url);
+}
+
+void test_host_starting_with_http_gets_a_scheme(void) {
+    nsBuildBaseUrl(url, sizeof(url), "httpbin.example.com");
+    TEST_ASSERT_EQUAL_STRING("https://httpbin.example.com", url);
+}
+
 void test_trailing_slash_stripped(void) {
     nsBuildBaseUrl(url, sizeof(url), "https://ns.example.com/");
     TEST_ASSERT_EQUAL_STRING("https://ns.example.com", url);
@@ -83,6 +95,8 @@ int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_bare_host_gets_https);
     RUN_TEST(test_existing_scheme_preserved);
+    RUN_TEST(test_upper_case_scheme_is_not_doubled);
+    RUN_TEST(test_host_starting_with_http_gets_a_scheme);
     RUN_TEST(test_trailing_slash_stripped);
     RUN_TEST(test_empty_url_stays_empty);
     RUN_TEST(test_entries_url_requests_one_entry);

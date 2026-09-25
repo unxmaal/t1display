@@ -38,9 +38,20 @@ uint16_t calcCRC(const char* str);
  *   "FortyFiveDown"/"FORTY_FIVE_DOWN"→  45
  *   "SingleDown" / "SINGLE_DOWN"     →  75
  *   "DoubleDown" / "DOUBLE_DOWN"     →  90
+ *   "TripleUp"   / "TRIPLE_UP"       → -90
+ *   "TripleDown" / "TRIPLE_DOWN"     →  90
  *   anything else (incl. "NONE", "NOT COMPUTABLE", NULL) → 180
  */
 int directionToAngle(const char* direction);
+
+#define ARROW_NONE              0
+#define ARROW_SINGLE            1
+#define ARROW_DOUBLE            2
+#define ARROW_RATE_OUT_OF_RANGE 3
+
+/** How to draw the trend: none, one arrow, two arrows (Triple*), or the
+ *  rate-out-of-range glyph. */
+int directionArrowStyle(const char* direction);
 
 /* ── Snooze packet helpers ──────────────────────────────────────── */
 
@@ -61,7 +72,7 @@ bool parseSnoozePacket(const char* packetBuffer,
 /**
  * Sanitize a JSON buffer in-place:
  *   1. Replace chars < 32 with space
- *   2. Replace \u0000, \u000b, \u0032 with spaces
+ *   2. Replace \u0000, \u000b, \u0002 with spaces
  *   3. Strip fractional milliseconds from "date": fields
  *      (e.g. "date":1234567890.123 → "date":1234567890)
  *

@@ -105,6 +105,13 @@ no-readings alert instead of a low alarm.
 
 mg/dL and mmol/L convert at 18.01559, the factor Nightscout uses.
 
+### Trend arrows
+
+One arrow for the usual Nightscout directions. `TripleUp` and `TripleDown`, the
+fastest rise and fall, draw two arrows. `RATE OUT OF RANGE` draws an up-and-down
+pair. `NONE`, `NOT COMPUTABLE` and anything unrecognised draw nothing. Numeric
+`trend` values 0–9 map onto the same names.
+
 ### Thresholds are always mmol/L
 
 `show_mgdl` controls **display formatting only**. Every threshold — `yellow_*`,
