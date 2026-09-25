@@ -119,21 +119,12 @@ void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
 }
 
 static void playSound(int sound, const Config &cfg) {
+    int volume = alarmSoundUsesAlarmVolume(sound) ? cfg.alarm_volume : cfg.warning_volume;
     switch (sound) {
-        case ALARM_SOUND_LOW_ALARM:
-            playLowAlarm(cfg.alarm_volume);
-            break;
-        case ALARM_SOUND_HIGH_ALARM:
-            playHighAlarm(cfg.alarm_volume);
-            break;
-        case ALARM_SOUND_LOW_WARNING:
-            playLowWarning(cfg.warning_volume);
-            break;
-        case ALARM_SOUND_HIGH_WARNING:
-            playHighWarning(cfg.warning_volume);
-            break;
-        case ALARM_SOUND_NO_READINGS:
-            playNoReadings(cfg.warning_volume);
-            break;
+        case ALARM_SOUND_LOW_ALARM:    playLowAlarm(volume);    break;
+        case ALARM_SOUND_HIGH_ALARM:   playHighAlarm(volume);   break;
+        case ALARM_SOUND_LOW_WARNING:  playLowWarning(volume);  break;
+        case ALARM_SOUND_HIGH_WARNING: playHighWarning(volume); break;
+        case ALARM_SOUND_NO_READINGS:  playNoReadings(volume);  break;
     }
 }

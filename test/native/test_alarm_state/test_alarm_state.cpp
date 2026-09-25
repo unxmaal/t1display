@@ -159,6 +159,15 @@ void test_loop_error_has_its_own_sound(void) {
     TEST_ASSERT_EQUAL_INT(ALARM_SOUND_NO_READINGS, alarmSound(ALARM_LEVEL_LOOP_ERROR));
 }
 
+void test_no_readings_is_as_loud_as_an_alarm(void) {
+    TEST_ASSERT_TRUE_MESSAGE(alarmSoundUsesAlarmVolume(ALARM_SOUND_NO_READINGS),
+        "losing the feed is a serious problem, not a warning");
+    TEST_ASSERT_TRUE(alarmSoundUsesAlarmVolume(ALARM_SOUND_LOW_ALARM));
+    TEST_ASSERT_TRUE(alarmSoundUsesAlarmVolume(ALARM_SOUND_HIGH_ALARM));
+    TEST_ASSERT_FALSE(alarmSoundUsesAlarmVolume(ALARM_SOUND_LOW_WARNING));
+    TEST_ASSERT_FALSE(alarmSoundUsesAlarmVolume(ALARM_SOUND_HIGH_WARNING));
+}
+
 void test_each_glucose_level_maps_to_its_sound(void) {
     TEST_ASSERT_EQUAL_INT(ALARM_SOUND_LOW_ALARM,    alarmSound(ALARM_LEVEL_LOW_ALARM));
     TEST_ASSERT_EQUAL_INT(ALARM_SOUND_HIGH_ALARM,   alarmSound(ALARM_LEVEL_HIGH_ALARM));
@@ -254,6 +263,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_snooze_pressed_with_no_alarm_masks_nothing);
     RUN_TEST(test_zero_timeout_still_snoozes);
     RUN_TEST(test_loop_error_has_its_own_sound);
+    RUN_TEST(test_no_readings_is_as_loud_as_an_alarm);
     RUN_TEST(test_each_glucose_level_maps_to_its_sound);
     RUN_TEST(test_repeated_snooze_is_capped);
     RUN_TEST(test_held_press_does_not_run_away);

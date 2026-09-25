@@ -115,10 +115,8 @@ void test_alarmLevel_low_alarm_beats_no_readings(void) {
                    25, NO_READ_MIN, false));
 }
 
-void test_alarmLevel_zero_glucose_no_alarm(void) {
-    // 0.0 glucose (no reading) should NOT trigger low alarm
-    // The .ino checks sensSgv>=0.1
-    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_NO_READINGS,
+void test_alarmLevel_zero_glucose_alarms(void) {
+    TEST_ASSERT_EQUAL_INT(ALARM_LEVEL_LOW_ALARM,
         alarmLevel(0.0f, ALARM_LO, WARN_LO, ALARM_HI, WARN_HI,
                    25, NO_READ_MIN, false));
 }
@@ -140,6 +138,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_alarmLevel_no_readings_just_under);
     RUN_TEST(test_alarmLevel_loop_error);
     RUN_TEST(test_alarmLevel_low_alarm_beats_no_readings);
-    RUN_TEST(test_alarmLevel_zero_glucose_no_alarm);
+    RUN_TEST(test_alarmLevel_zero_glucose_alarms);
     return UNITY_END();
 }

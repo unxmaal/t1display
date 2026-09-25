@@ -10,12 +10,19 @@ Thresholds are always mmol/L. See `rules/04-configuration.md`.
 | Low warning | `snd_warning` | 3.7 | `warning_volume` |
 | High warning | `snd_warning_high` | 14.0 | `warning_volume` |
 | High alarm | `snd_alarm_high` | 20.0 | `alarm_volume` |
-| No readings | `snd_no_readings` | 20 min | `warning_volume` |
+| No readings | `snd_no_readings` | 20 min | `alarm_volume` |
 
-Level selection is `alarmLevel()` in `lib/ns_pure_logic/`. An sgv below
-`SGV_MIN_VALID_MGDL` (39 mg/dL) is a CGM error code, not a hypo, and returns
-`ALARM_LEVEL_NO_READINGS`. 39 itself is Dexcom's LOW and must alarm. All unit
-conversion uses `MGDL_PER_MMOL`.
+Level selection is `alarmLevel()` in `lib/ns_pure_logic/`. The sensor's range
+limits alarm whatever the thresholds say:
+- at or below `SGV_MIN_VALID_MGDL` (39 mg/dL), error codes included, is a low
+  alarm;
+- at or above `SGV_MAX_VALID_MGDL` (401) is a high alarm.
+
+A false alert is acceptable: the user confirms with a finger-stick, which is
+protocol. The only exception is an unknown age (no reading ever received),
+which is no-readings, so a boot without network does not announce a hypo.
+Never downgrade a sensor error to a quieter alert. All unit conversion uses
+`MGDL_PER_MMOL`. `alarmSoundUsesAlarmVolume()` decides the volume.
 
 ## Audio
 
