@@ -102,24 +102,21 @@ void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
     if (!alarmShouldFire(&alarm.sched, nowMs, level, cfg.alarm_repeat))
         return;
 
-    switch (level) {
-        case ALARM_LEVEL_LOW_ALARM:
+    switch (alarmSound(level)) {
+        case ALARM_SOUND_LOW_ALARM:
             playLowAlarm(cfg.alarm_volume);
             break;
-        case ALARM_LEVEL_HIGH_ALARM:
+        case ALARM_SOUND_HIGH_ALARM:
             playHighAlarm(cfg.alarm_volume);
             break;
-        case ALARM_LEVEL_LOW_WARNING:
+        case ALARM_SOUND_LOW_WARNING:
             playLowWarning(cfg.warning_volume);
             break;
-        case ALARM_LEVEL_HIGH_WARNING:
+        case ALARM_SOUND_HIGH_WARNING:
             playHighWarning(cfg.warning_volume);
             break;
-        case ALARM_LEVEL_NO_READINGS:
+        case ALARM_SOUND_NO_READINGS:
             playNoReadings(cfg.warning_volume);
-            break;
-        case ALARM_LEVEL_LOOP_ERROR:
-            playHighAlarm(cfg.alarm_volume);
             break;
     }
     alarmRecordFired(&alarm.sched, nowMs);

@@ -65,15 +65,96 @@ void test_snoozing_warning_does_not_silence_alarm(void) {
 void test_snoozing_alarm_silences_lesser_warning(void) {
     alarmScheduleInit(&s);
     alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 30);
+    TEST_ASSERT_FALSE(alarmShouldFire(&s, MIN_MS(10), ALARM_LEVEL_LOW_WARNING, 5));
+}
+
+void test_snoozing_low_alarm_does_not_silence_high_alarm(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 30);
+    TEST_ASSERT_TRUE_MESSAGE(alarmShouldFire(&s, MIN_MS(2), ALARM_LEVEL_HIGH_ALARM, 5),
+        "a snoozed hypo must not hide a hyper");
+}
+
+void test_snoozing_high_alarm_does_not_silence_low_warning(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_HIGH_ALARM, 30);
+    TEST_ASSERT_TRUE(alarmShouldFire(&s, MIN_MS(2), ALARM_LEVEL_LOW_WARNING, 5));
+}
+
+void test_snoozing_warning_does_not_silence_loop_error(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_HIGH_WARNING, 30);
+    TEST_ASSERT_TRUE(alarmShouldFire(&s, MIN_MS(5), ALARM_LEVEL_LOOP_ERROR, 5));
+}
+
+void test_snoozing_low_alarm_does_not_silence_no_readings(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 30);
+    TEST_ASSERT_TRUE_MESSAGE(alarmShouldFire(&s, MIN_MS(10), ALARM_LEVEL_NO_READINGS, 5),
+        "losing the feed while a hypo is snoozed is a new problem");
+}
+
+void test_snoozing_loop_error_silences_no_readings(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOOP_ERROR, 30);
     TEST_ASSERT_FALSE(alarmShouldFire(&s, MIN_MS(10), ALARM_LEVEL_NO_READINGS, 5));
+}
+
+void test_double_tap_does_not_double_the_snooze(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 30);
+    alarmScheduleSnooze(&s, 5000, ALARM_LEVEL_LOW_ALARM, 30);
+    TEST_ASSERT_UINT32_WITHIN_MESSAGE(10, 30UL * 60UL, alarmSnoozeRemainingSec(&s, 5000),
+        "a fumbled double tap must count as one press");
+}
+
+void test_deliberate_second_press_adds_one_step(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 20);
+    alarmScheduleSnooze(&s, MIN_MS(1), ALARM_LEVEL_LOW_ALARM, 20);
+    TEST_ASSERT_UINT32_WITHIN(10, 39UL * 60UL, alarmSnoozeRemainingSec(&s, MIN_MS(1)));
+}
+
+void test_press_for_a_new_level_resnoozes_at_that_level(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_WARNING, 30);
+    alarmScheduleSnooze(&s, 3000, ALARM_LEVEL_LOW_ALARM, 30);
+    TEST_ASSERT_FALSE(alarmShouldFire(&s, MIN_MS(5), ALARM_LEVEL_LOW_ALARM, 5));
+}
+
+void test_snooze_pressed_with_no_alarm_masks_nothing(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_NORMAL, 30);
+    TEST_ASSERT_TRUE(alarmShouldFire(&s, MIN_MS(1), ALARM_LEVEL_LOW_WARNING, 5));
+}
+
+void test_zero_timeout_still_snoozes(void) {
+    alarmScheduleInit(&s);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 0);
+    TEST_ASSERT_TRUE_MESSAGE(alarmSnoozeRemainingSec(&s, 0) > 0,
+        "the snooze button must never silently do nothing");
+}
+
+void test_loop_error_has_its_own_sound(void) {
+    TEST_ASSERT_NOT_EQUAL(alarmSound(ALARM_LEVEL_HIGH_ALARM), alarmSound(ALARM_LEVEL_LOOP_ERROR));
+    TEST_ASSERT_EQUAL_INT(ALARM_SOUND_NO_READINGS, alarmSound(ALARM_LEVEL_LOOP_ERROR));
+}
+
+void test_each_glucose_level_maps_to_its_sound(void) {
+    TEST_ASSERT_EQUAL_INT(ALARM_SOUND_LOW_ALARM,    alarmSound(ALARM_LEVEL_LOW_ALARM));
+    TEST_ASSERT_EQUAL_INT(ALARM_SOUND_HIGH_ALARM,   alarmSound(ALARM_LEVEL_HIGH_ALARM));
+    TEST_ASSERT_EQUAL_INT(ALARM_SOUND_LOW_WARNING,  alarmSound(ALARM_LEVEL_LOW_WARNING));
+    TEST_ASSERT_EQUAL_INT(ALARM_SOUND_HIGH_WARNING, alarmSound(ALARM_LEVEL_HIGH_WARNING));
+    TEST_ASSERT_EQUAL_INT(ALARM_SOUND_NO_READINGS,  alarmSound(ALARM_LEVEL_NO_READINGS));
+    TEST_ASSERT_EQUAL_INT(ALARM_SOUND_NONE,         alarmSound(ALARM_LEVEL_NORMAL));
 }
 
 void test_repeated_snooze_is_capped(void) {
     alarmScheduleInit(&s);
     for (int i = 0; i < 20; i++)
-        alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 30);
-    unsigned long rem = alarmSnoozeRemainingSec(&s, 0);
-    TEST_ASSERT_TRUE_MESSAGE(rem <= ALARM_SNOOZE_MAX_SEC,
+        alarmScheduleSnooze(&s, MIN_MS(i), ALARM_LEVEL_LOW_ALARM, 30);
+    unsigned long rem = alarmSnoozeRemainingSec(&s, MIN_MS(19));
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(ALARM_SNOOZE_MAX_SEC, rem,
         "repeated snooze presses must not accumulate without bound");
 }
 
@@ -88,16 +169,16 @@ void test_held_press_does_not_run_away(void) {
 
 void test_snooze_multiplier_resets_after_expiry(void) {
     alarmScheduleInit(&s);
-    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 30);
-    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 30);
-    unsigned long stacked = alarmSnoozeRemainingSec(&s, 0);
+    alarmScheduleSnooze(&s, 0, ALARM_LEVEL_LOW_ALARM, 20);
+    alarmScheduleSnooze(&s, MIN_MS(1), ALARM_LEVEL_LOW_ALARM, 20);
+    unsigned long stacked = alarmSnoozeRemainingSec(&s, MIN_MS(1));
 
     unsigned long later = MIN_MS(200);
-    alarmScheduleSnooze(&s, later, ALARM_LEVEL_LOW_ALARM, 30);
+    alarmScheduleSnooze(&s, later, ALARM_LEVEL_LOW_ALARM, 20);
     unsigned long fresh = alarmSnoozeRemainingSec(&s, later);
 
     TEST_ASSERT_TRUE(stacked > fresh);
-    TEST_ASSERT_UINT32_WITHIN(60, 30UL * 60UL, fresh);
+    TEST_ASSERT_UINT32_WITHIN(60, 20UL * 60UL, fresh);
 }
 
 void test_snooze_remaining_zero_when_not_snoozed(void) {
@@ -141,6 +222,18 @@ int main(int argc, char **argv) {
     RUN_TEST(test_snoozing_no_readings_does_not_silence_hypo);
     RUN_TEST(test_snoozing_warning_does_not_silence_alarm);
     RUN_TEST(test_snoozing_alarm_silences_lesser_warning);
+    RUN_TEST(test_snoozing_low_alarm_does_not_silence_high_alarm);
+    RUN_TEST(test_snoozing_high_alarm_does_not_silence_low_warning);
+    RUN_TEST(test_snoozing_warning_does_not_silence_loop_error);
+    RUN_TEST(test_snoozing_low_alarm_does_not_silence_no_readings);
+    RUN_TEST(test_snoozing_loop_error_silences_no_readings);
+    RUN_TEST(test_double_tap_does_not_double_the_snooze);
+    RUN_TEST(test_deliberate_second_press_adds_one_step);
+    RUN_TEST(test_press_for_a_new_level_resnoozes_at_that_level);
+    RUN_TEST(test_snooze_pressed_with_no_alarm_masks_nothing);
+    RUN_TEST(test_zero_timeout_still_snoozes);
+    RUN_TEST(test_loop_error_has_its_own_sound);
+    RUN_TEST(test_each_glucose_level_maps_to_its_sound);
     RUN_TEST(test_repeated_snooze_is_capped);
     RUN_TEST(test_held_press_does_not_run_away);
     RUN_TEST(test_snooze_multiplier_resets_after_expiry);
