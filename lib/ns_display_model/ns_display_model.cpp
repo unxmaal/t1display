@@ -53,7 +53,7 @@ static void alarmBarColors(int alarm_level, int *bg, int *fg) {
 void buildGlucoseModel(
     GlucosePageModel *model,
     float sgv_mmol, float sgv_mgdl, bool show_mgdl,
-    const char * /* direction */, int arrow_angle,
+    const char *direction, int arrow_angle,
     const char *delta_display,
     int time_hour, int time_min,
     long now_sec, long sensor_time_sec,
@@ -88,6 +88,7 @@ void buildGlucoseModel(
 
     /* Arrow */
     model->arrow_angle = arrow_angle;
+    model->arrow_style = directionArrowStyle(direction);
     model->arrow_color = model->glucose_color;
 
     /* Sensor staleness */
@@ -111,12 +112,14 @@ void buildGlucoseModel(
         strlcpy(model->glucose_str, "--.-", sizeof(model->glucose_str));
         model->glucose_color = COLOR_LIGHTGREY;
         model->arrow_angle   = 180;
+        model->arrow_style   = ARROW_NONE;
         model->show_banner   = true;
         snprintf(model->banner_str, sizeof(model->banner_str), "NO DATA %d min", age_min);
     } else if (sgvIsSensorError(sgv_mmol)) {
         strlcpy(model->glucose_str, "--.-", sizeof(model->glucose_str));
         model->glucose_color = COLOR_LIGHTGREY;
         model->arrow_angle   = 180;
+        model->arrow_style   = ARROW_NONE;
         model->show_banner   = true;
         strlcpy(model->banner_str, "SENSOR ERROR", sizeof(model->banner_str));
     } else if (model->staleness == STALENESS_STALE) {

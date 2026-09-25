@@ -1,5 +1,6 @@
 #include <unity.h>
 #include <string.h>
+#include <stdio.h>
 #include <math.h>
 #include "ns_json_parse.h"
 #include "ns_pure_logic.h"
@@ -82,6 +83,26 @@ void test_parse_sgv_skips_cal_entry(void) {
     TEST_ASSERT_EQUAL_FLOAT(180.0f, entry.sgv_mgdl);
     TEST_ASSERT_EQUAL_STRING("SingleUp", entry.direction);
     TEST_ASSERT_EQUAL_INT(-75, entry.arrow_angle);  // SingleUp = -75
+}
+
+static void parseTrend(int trend, SGVEntry *entry) {
+    char json[128];
+    snprintf(json, sizeof(json), "[{\"sgv\":120,\"date\":1709312400000,\"trend\":%d}]", trend);
+    memset(entry, 0, sizeof(*entry));
+    TEST_ASSERT_EQUAL_INT(PARSE_OK, parseSGVResponse(json, strlen(json), entry));
+}
+
+void test_parse_numeric_trend_full_scale(void) {
+    const char *expected[] = {"NONE", "DoubleUp", "SingleUp", "FortyFiveUp", "Flat",
+                              "FortyFiveDown", "SingleDown", "DoubleDown",
+                              "NOT COMPUTABLE", "RATE OUT OF RANGE"};
+    SGVEntry entry;
+    for (int t = 0; t <= 9; t++) {
+        parseTrend(t, &entry);
+        TEST_ASSERT_EQUAL_STRING(expected[t], entry.direction);
+    }
+    parseTrend(42, &entry);
+    TEST_ASSERT_EQUAL_STRING("NONE", entry.direction);
 }
 
 void test_parse_sgv_numeric_trend(void) {
@@ -201,6 +222,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_parse_sgv_normal);
     RUN_TEST(test_parse_sgv_skips_cal_entry);
     RUN_TEST(test_parse_sgv_numeric_trend);
+    RUN_TEST(test_parse_numeric_trend_full_scale);
     RUN_TEST(test_parse_sgv_empty_array);
     RUN_TEST(test_parse_sgv_invalid_json);
     RUN_TEST(test_parse_sgv_null_input);

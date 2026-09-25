@@ -39,17 +39,26 @@ void test_sanitize_replaces_u000b(void) {
     TEST_ASSERT_EQUAL(3, len);
 }
 
-void test_sanitize_replaces_u0032(void) {
+void test_sanitize_replaces_u0002(void) {
     char buf[64];
-    strcpy(buf, "test\\u0032val");
+    strcpy(buf, "test\\u0002val");
     size_t len = sanitizeJson(buf, strlen(buf));
     TEST_ASSERT_EQUAL_STRING("test val", buf);
     TEST_ASSERT_EQUAL(8, len);
 }
 
+void test_sanitize_keeps_escaped_digit_two(void) {
+    char buf[64];
+    strcpy(buf, "test\\u0032val");
+    size_t len = sanitizeJson(buf, strlen(buf));
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("test\\u0032val", buf,
+        "\\u0032 is the digit 2, not a control character");
+    TEST_ASSERT_EQUAL(13, len);
+}
+
 void test_sanitize_multiple_unicode_escapes(void) {
     char buf[128];
-    strcpy(buf, "a\\u0000b\\u000bc\\u0032d");
+    strcpy(buf, "a\\u0000b\\u000bc\\u0002d");
     size_t len = sanitizeJson(buf, strlen(buf));
     TEST_ASSERT_EQUAL_STRING("a b c d", buf);
     TEST_ASSERT_EQUAL(7, len);
@@ -106,7 +115,8 @@ int main(void) {
     RUN_TEST(test_sanitize_replaces_newline_tab);
     RUN_TEST(test_sanitize_replaces_u0000);
     RUN_TEST(test_sanitize_replaces_u000b);
-    RUN_TEST(test_sanitize_replaces_u0032);
+    RUN_TEST(test_sanitize_replaces_u0002);
+    RUN_TEST(test_sanitize_keeps_escaped_digit_two);
     RUN_TEST(test_sanitize_multiple_unicode_escapes);
     RUN_TEST(test_sanitize_strips_date_fractional_ms);
     RUN_TEST(test_sanitize_strips_multiple_date_fields);

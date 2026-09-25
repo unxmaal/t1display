@@ -7,6 +7,7 @@
 #include "ns_url_build.h"
 
 #include <string.h>
+#include <strings.h>
 
 #ifndef strlcat
 extern "C" size_t strlcat(char *dst, const char *src, size_t dsize);
@@ -16,8 +17,14 @@ void nsBuildBaseUrl(char *out, size_t outSize, const char *url) {
     out[0] = '\0';
     if (url[0] == '\0')
         return;
-    if (strncmp(url, "http", 4) != 0)
+    if (strncasecmp(url, "http://", 7) == 0) {
+        strlcat(out, "http://", outSize);
+        url += 7;
+    } else {
         strlcat(out, "https://", outSize);
+        if (strncasecmp(url, "https://", 8) == 0)
+            url += 8;
+    }
     strlcat(out, url, outSize);
 
     size_t len = strlen(out);

@@ -51,6 +51,7 @@ int parseSGVResponse(const char *json, size_t len, SGVEntry *entry) {
         if (obj["trend"].is<int>()) {
             int trend = obj["trend"].as<int>();
             switch (trend) {
+                case 0: dir = "NONE"; break;
                 case 1: dir = "DoubleUp"; break;
                 case 2: dir = "SingleUp"; break;
                 case 3: dir = "FortyFiveUp"; break;
@@ -58,6 +59,8 @@ int parseSGVResponse(const char *json, size_t len, SGVEntry *entry) {
                 case 5: dir = "FortyFiveDown"; break;
                 case 6: dir = "SingleDown"; break;
                 case 7: dir = "DoubleDown"; break;
+                case 8: dir = "NOT COMPUTABLE"; break;
+                case 9: dir = "RATE OUT OF RANGE"; break;
                 default: dir = "NONE"; break;
             }
         } else {
