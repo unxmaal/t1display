@@ -26,7 +26,43 @@ void test_defaults_device_name(void) {
 void test_defaults_timezone(void) {
     ParsedConfig cfg;
     configDefaults(&cfg);
-    TEST_ASSERT_EQUAL_INT(3600, cfg.timeZone);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, cfg.timeZone,
+        "the default zone is UTC, not the upstream author's");
+    TEST_ASSERT_EQUAL_INT(0, cfg.dst);
+    TEST_ASSERT_EQUAL_STRING("", cfg.tz);
+}
+
+void test_posix_tz_is_parsed(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t len = loadBuf("[config]\ntz = EST5EDT,M3.2.0,M11.1.0\n");
+    parseConfigBuffer(buf, len, &cfg);
+    TEST_ASSERT_EQUAL_STRING("EST5EDT,M3.2.0,M11.1.0", cfg.tz);
+    TEST_ASSERT_EQUAL_INT(0, cfg.configErrors);
+}
+
+void test_invalid_tz_is_rejected(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t len = loadBuf("[config]\ntz = Eastern Time\n");
+    parseConfigBuffer(buf, len, &cfg);
+    TEST_ASSERT_EQUAL_STRING("", cfg.tz);
+    TEST_ASSERT_EQUAL_INT(1, cfg.configErrors);
+    TEST_ASSERT_EQUAL_STRING("tz", cfg.firstBadKey);
+}
+
+void test_tz_validity(void) {
+    TEST_ASSERT_TRUE(tzStringValid(""));
+    TEST_ASSERT_TRUE(tzStringValid("UTC0"));
+    TEST_ASSERT_TRUE(tzStringValid("CET-1CEST,M3.5.0,M10.5.0/3"));
+    TEST_ASSERT_TRUE(tzStringValid("<+0330>-3:30"));
+    TEST_ASSERT_TRUE(tzStringValid("NZST-12NZDT,M9.5.0,M4.1.0/3"));
+    TEST_ASSERT_FALSE(tzStringValid("Eastern Time"));
+    TEST_ASSERT_FALSE(tzStringValid("America/New_York"));
+    TEST_ASSERT_FALSE(tzStringValid("UT0"));
+    TEST_ASSERT_FALSE(tzStringValid("UTC"));
+    TEST_ASSERT_FALSE(tzStringValid("<+0330"));
+    TEST_ASSERT_FALSE(tzStringValid(NULL));
 }
 
 void test_defaults_thresholds(void) {
@@ -608,6 +644,9 @@ int main(int argc, char **argv) {
     /* Defaults */
     RUN_TEST(test_defaults_device_name);
     RUN_TEST(test_defaults_timezone);
+    RUN_TEST(test_posix_tz_is_parsed);
+    RUN_TEST(test_invalid_tz_is_rejected);
+    RUN_TEST(test_tz_validity);
     RUN_TEST(test_defaults_thresholds);
     RUN_TEST(test_defaults_brightness);
     RUN_TEST(test_defaults_sound);

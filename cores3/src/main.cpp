@@ -123,7 +123,10 @@ static void connectWiFi() {
     M5.Display.setTextDatum(TL_DATUM);
     M5.Display.drawString("Connecting WiFi...", 10, 100);
 
-    configTime(cfg.timeZone, cfg.dst, ntpServer, "time.nist.gov", "time.google.com");
+    if (cfg.tz[0])
+        configTzTime(cfg.tz, ntpServer, "time.nist.gov", "time.google.com");
+    else
+        configTime(cfg.timeZone, cfg.dst, ntpServer, "time.nist.gov", "time.google.com");
 
     Serial.printf("[WIFI] Connecting (%d APs)...\n", apCount);
     int attempts = 0;

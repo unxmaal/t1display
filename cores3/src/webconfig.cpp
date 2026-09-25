@@ -170,6 +170,8 @@ static void handleRoot() {
 
     // System
     html += "<h2>System</h2>";
+    html += textInput("Time Zone (POSIX TZ, e.g. EST5EDT,M3.2.0,M11.1.0; overrides the offsets)",
+                      "tz", c.tz, 63);
     html += numInput("Time Zone (seconds offset)", "time_zone", c.timeZone);
     html += numInput("DST (seconds offset)", "dst", c.dst);
     html += numInput("Restart at Logged Errors (0=off)", "restart_at_logged_errors", c.restart_at_logged_errors);

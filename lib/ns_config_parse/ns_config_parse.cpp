@@ -34,7 +34,6 @@ static void defaultAlarmThresholds(ParsedConfig *cfg) {
 void configDefaults(ParsedConfig *cfg) {
     *cfg = ParsedConfig{};
     strlcpy(cfg->deviceName, "t1display", sizeof(cfg->deviceName));
-    cfg->timeZone          = 3600;
     defaultBands(cfg);
     defaultAlarmThresholds(cfg);
     cfg->snd_no_readings   = 20;
@@ -161,6 +160,7 @@ static bool applyStringKey(ParsedConfig *cfg, const char *key, const char *val) 
         { "name",            cfg->userName,        sizeof(cfg->userName) },
         { "device_name",     cfg->deviceName,      sizeof(cfg->deviceName) },
         { "restart_at_time", cfg->restart_at_time, sizeof(cfg->restart_at_time) },
+        { "tz",              cfg->tz,              sizeof(cfg->tz) },
         { "ota_password",    cfg->otaPassword,     sizeof(cfg->otaPassword) },
         { "web_user",        cfg->webUser,         sizeof(cfg->webUser) },
         { "web_pass",        cfg->webPass,         sizeof(cfg->webPass) },
@@ -189,6 +189,39 @@ static int wlanSlotFromKey(const char *key, bool *isPass) {
     else return -1;
     idx--;
     return (idx >= 0 && idx < CFG_MAX_WLAN) ? idx : -1;
+}
+
+static bool isTzChar(char c) {
+    return isalnum((unsigned char)c) || (c != '\0' && strchr("<>+-:,./", c) != NULL);
+}
+
+bool tzStringValid(const char *tz) {
+    if (!tz)
+        return false;
+    if (tz[0] == '\0')
+        return true;
+    for (const char *c = tz; *c; c++)
+        if (!isTzChar(*c))
+            return false;
+
+    const char *p = tz;
+    if (*p == '<') {
+        const char *close = strchr(p, '>');
+        if (!close || close - p - 1 < 3)
+            return false;
+        p = close + 1;
+    } else {
+        int letters = 0;
+        while (isalpha((unsigned char)*p)) {
+            p++;
+            letters++;
+        }
+        if (letters < 3)
+            return false;
+    }
+    if (*p == '+' || *p == '-')
+        p++;
+    return isdigit((unsigned char)*p) != 0;
 }
 
 bool configIsSecretKey(const char *key) {
@@ -353,6 +386,11 @@ void validateConfig(ParsedConfig *cfg) {
         configError(cfg, "thresholds");
     }
 
+    if (!tzStringValid(cfg->tz)) {
+        cfg->tz[0] = '\0';
+        configError(cfg, "tz");
+    }
+
     if (cfg->restart_at_time[0] == '\0') {
         strlcpy(cfg->restart_at_time, "NORES", sizeof(cfg->restart_at_time));
     } else if (strcmp(cfg->restart_at_time, "NORES") != 0 &&
@@ -421,6 +459,7 @@ int serializeConfigINI(const ParsedConfig *cfg, char *buf, size_t bufSize) {
     EMIT("device_name = %s\n", cfg->deviceName);
     EMIT("time_zone = %d\n", cfg->timeZone);
     EMIT("dst = %d\n", cfg->dst);
+    EMIT("tz = %s\n", cfg->tz);
     EMIT("show_mgdl = %d\n", cfg->show_mgdl);
     EMIT("show_current_time = %d\n", cfg->show_current_time);
     EMIT("default_page = %d\n", cfg->default_page);
