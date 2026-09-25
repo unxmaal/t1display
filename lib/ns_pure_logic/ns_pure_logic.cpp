@@ -7,6 +7,7 @@
 #include "ns_pure_logic.h"
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 /* ── Integer clamping ──────────────────────────────────────────── */
 
@@ -186,6 +187,31 @@ int formatGlucose(char *buf, size_t bufsize,
     }
     snprintf(buf, bufsize, "%.1f", sgv_mmol);
     return FONT_MEDIUM;
+}
+
+/* ── Clock and date formatting ─────────────────────────────────── */
+
+void formatClock(char *buf, size_t bufsize, int hour, int min, int time_format) {
+    if (time_format == TIME_FORMAT_12H) {
+        int h12 = hour % 12;
+        snprintf(buf, bufsize, "%d:%02d%c", h12 == 0 ? 12 : h12, min, hour < 12 ? 'a' : 'p');
+    } else {
+        snprintf(buf, bufsize, "%02d:%02d", hour, min);
+    }
+}
+
+void formatLogDate(char *buf, size_t bufsize, const struct tm *t,
+                   int date_format, int time_format) {
+    if (!t) {
+        snprintf(buf, bufsize, "no clock");
+        return;
+    }
+    char clock[8];
+    formatClock(clock, sizeof(clock), t->tm_hour, t->tm_min, time_format);
+    if (date_format == DATE_FORMAT_MONTH_FIRST)
+        snprintf(buf, bufsize, "%02d/%02d %s", t->tm_mon + 1, t->tm_mday, clock);
+    else
+        snprintf(buf, bufsize, "%02d.%02d %s", t->tm_mday, t->tm_mon + 1, clock);
 }
 
 /* ── Uptime formatting ─────────────────────────────────────────── */

@@ -36,6 +36,8 @@ struct NSinfo {
     char     delta_display[16];
 };
 
+#include "ns_error_log.h"
+
 /* ── State shared with the web task ───────────────────────────── */
 
 struct SaveResult {
@@ -54,6 +56,7 @@ struct WebShared {
     Guarded<Config>              *cfg;
     Exchange<Config, SaveResult> *save;
     Guarded<PowerStatus>         *power;
+    Guarded<NsErrorLog>          *errors;
 };
 
 /* ── Error log ─────────────────────────────────────────────────── */

@@ -75,7 +75,7 @@ void test_roundtrip_custom_values(void) {
     orig.default_page = 1;
     orig.sgv_only = 1;
     orig.info_line = 0;
-    orig.date_format = 2;
+    orig.date_format = 1;
     orig.time_format = 1;
     orig.yellow_low = 5.0f;
     orig.yellow_high = 10.0f;

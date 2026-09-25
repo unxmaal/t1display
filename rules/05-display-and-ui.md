@@ -20,9 +20,11 @@ full-frame cost is irrelevant and the complexity is not.
 | Page | Contents |
 |------|----------|
 | `PAGE_GLUCOSE` (0) | glucose value, trend arrow, delta, clock, battery, alarm bar |
-| `PAGE_STATUS` (1) | error log, free heap, uptime, IP, version |
+| `PAGE_ERRORS` (1) | every held error (`STATUS_MAX_ERRORS == NS_ERR_LOG_SIZE`), total count |
+| `PAGE_SYSTEM` (2) | free heap, uptime, IP, version, config errors |
 
-`NUM_PAGES` is 2.
+`NUM_PAGES` is 3. Clock and log dates use `formatClock()` / `formatLogDate()` with
+`time_format` and `date_format`; never hard-code `%02d:%02d`.
 
 ## Model / render split
 

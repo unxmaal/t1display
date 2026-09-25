@@ -1,6 +1,7 @@
 #include <unity.h>
 #include <string.h>
 #include "ns_display_model.h"
+#include "ns_error_log.h"
 #include "ns_pure_logic.h"
 
 void setUp(void) {}
@@ -18,7 +19,7 @@ void test_glucose_model_normal(void) {
         1709312400, 1709312200,    // now, sensor_time (200s ago = 3 min)
         4.5f, 9.0f, 3.9f, 11.0f,  // thresholds
         ALARM_LEVEL_NORMAL, 0,     // alarm, snooze
-        75, 0                      // battery, errors
+        75, 0, 0                   // battery, errors, time_format
     );
 
     TEST_ASSERT_EQUAL_STRING("14:30", m.time_str);
@@ -43,7 +44,7 @@ void test_glucose_model_high_yellow(void) {
         1000, 900,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NORMAL, 0,
-        50, 0
+        50, 0, 0
     );
 
     TEST_ASSERT_EQUAL_INT(COLOR_YELLOW, m.glucose_color);
@@ -60,7 +61,7 @@ void test_glucose_model_low_red(void) {
         1000, 900,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_LOW_ALARM, 0,
-        30, 2
+        30, 2, 0
     );
 
     TEST_ASSERT_EQUAL_INT(COLOR_RED, m.glucose_color);
@@ -79,7 +80,7 @@ void test_glucose_model_stale_sensor(void) {
         1709312400, 1709311680,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NORMAL, 0,
-        80, 0
+        80, 0, 0
     );
 
     TEST_ASSERT_TRUE(m.show_age);
@@ -96,7 +97,7 @@ void test_glucose_model_very_stale_sensor(void) {
         1709312400, 1709311200,  // 1200s = 20 min ago
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NO_READINGS, 0,
-        80, 0
+        80, 0, 0
     );
 
     TEST_ASSERT_TRUE(m.show_age);
@@ -113,7 +114,7 @@ void test_glucose_model_mgdl_mode(void) {
         1000, 1000,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NORMAL, 0,
-        -1, 0
+        -1, 0, 0
     );
 
     TEST_ASSERT_EQUAL_STRING("135", m.glucose_str);
@@ -129,7 +130,7 @@ void test_glucose_model_snooze_countdown(void) {
         1000, 900,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_LOW_WARNING, 300,  // 300s = 5 min snooze
-        60, 0
+        60, 0, 0
     );
 
     TEST_ASSERT_TRUE(m.show_alarm_bar);
@@ -147,7 +148,7 @@ void test_glucose_model_double_digit_mmol(void) {
         1000, 1000,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_HIGH_ALARM, 0,
-        50, 0
+        50, 0, 0
     );
 
     TEST_ASSERT_EQUAL_STRING("15.3", m.glucose_str);
@@ -164,7 +165,7 @@ static void buildDir(GlucosePageModel *m, const char *dir, long age_sec) {
         1709312400 + age_sec, 1709312400,
         4.5f, 9.0f, 3.9f, 11.0f,
         ALARM_LEVEL_NORMAL, 0,
-        80, 0);
+        80, 0, 0);
 }
 
 void test_glucose_model_triple_trend_draws_double_arrow(void) {
@@ -200,7 +201,7 @@ static void buildLevel(GlucosePageModel *m, int level, int snooze_sec) {
         1000, 1000,
         4.5f, 9.0f, 3.9f, 11.0f,
         level, snooze_sec,
-        60, 1);
+        60, 1, 0);
 }
 
 void test_active_alarm_bar_says_how_to_silence_it(void) {
@@ -238,6 +239,43 @@ void test_labels_sit_in_their_touch_zones(void) {
     TEST_ASSERT_TRUE(LAYOUT_LABEL_LEFT_X < LAYOUT_SCREEN_W / 3);
     TEST_ASSERT_TRUE(LAYOUT_LABEL_RIGHT_X > 2 * LAYOUT_SCREEN_W / 3);
     TEST_ASSERT_TRUE(LAYOUT_LABEL_RIGHT_X < LAYOUT_BATTERY_X);
+}
+
+void test_glucose_model_uses_the_time_format(void) {
+    GlucosePageModel m;
+    buildGlucoseModel(&m,
+        6.0f, 108.0f, false,
+        "Flat", 0, "+0.1",
+        13, 7,
+        1000, 1000,
+        4.5f, 9.0f, 3.9f, 11.0f,
+        ALARM_LEVEL_NORMAL, 0,
+        60, 0, TIME_FORMAT_12H);
+    TEST_ASSERT_EQUAL_STRING("1:07p", m.time_str);
+}
+
+void test_status_model_shows_every_held_error(void) {
+    TEST_ASSERT_EQUAL_INT_MESSAGE(NS_ERR_LOG_SIZE, STATUS_MAX_ERRORS,
+        "the status page must be able to show everything the log holds");
+    int codes[NS_ERR_LOG_SIZE];
+    char dates[NS_ERR_LOG_SIZE][16];
+    for (int i = 0; i < NS_ERR_LOG_SIZE; i++) {
+        codes[i] = -1;
+        strcpy(dates[i], "01.01 00:00");
+    }
+    StatusPageModel m;
+    buildStatusModel(&m, codes, dates, NS_ERR_LOG_SIZE, 42, 100000, 0, "1.2.3.4", "x", 50);
+    TEST_ASSERT_EQUAL_INT(NS_ERR_LOG_SIZE, m.display_count);
+}
+
+void test_describe_error_code(void) {
+    char buf[32];
+    describeErrorCode(1002, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_STRING("No data from NS", buf);
+    describeErrorCode(-1, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_STRING("HTTP err -1", buf);
+    describeErrorCode(404, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_STRING("HTTP 404", buf);
 }
 
 void test_status_model_no_errors(void) {
@@ -333,6 +371,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_touch_labels_give_way_to_the_alarm_bar);
     RUN_TEST(test_alarm_bar_leaves_room_for_badge_and_battery);
     RUN_TEST(test_labels_sit_in_their_touch_zones);
+    RUN_TEST(test_glucose_model_uses_the_time_format);
+    RUN_TEST(test_status_model_shows_every_held_error);
+    RUN_TEST(test_describe_error_code);
     RUN_TEST(test_status_model_no_errors);
     RUN_TEST(test_status_model_with_errors);
     RUN_TEST(test_status_model_null_errors_no_crash);

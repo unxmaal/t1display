@@ -48,7 +48,7 @@ recognize, in both `[config]` and `[wlan*]` sections. A correct INI parses with
 
 Every rejection, clamp, truncation, unknown section or key, bad
 `restart_at_time` and threshold-order violation calls `configError()`.
-`formatConfigErrors()` renders the summary shown on the splash, the status page
+`formatConfigErrors()` renders the summary shown on the splash, the system page
 and the web save page. `applyConfigForm()` resets the count first. Never add a
 path that silently discards user input.
 

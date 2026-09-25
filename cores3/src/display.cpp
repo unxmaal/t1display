@@ -156,7 +156,8 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
         now_sec, (long)ns.sensTime,
         cfg.yellow_low, cfg.yellow_high, cfg.red_low, cfg.red_high,
         level, snoozeRemainingSec,
-        batteryPct, nsErrorLogHasActiveFault(&errLog) ? 1 : 0);
+        batteryPct, nsErrorLogHasActiveFault(&errLog) ? 1 : 0,
+        cfg.time_format);
 
     // ── Render from model ─────────────────────────────────────────
 
@@ -258,12 +259,9 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
     }
 }
 
-/* ── Page 1: Error log / status ────────────────────────────────── */
+/* ── Pages 1 and 2: error log, system ─────────────────────────── */
 
-void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog) {
-    (void)ns;
-
-    // Prepare error data for the model
+static void buildStatus(const Config &cfg, const ErrorLog &errLog, StatusPageModel *model) {
     int codes[STATUS_MAX_ERRORS];
     char dates[STATUS_MAX_ERRORS][16];
     int displayCount = nsErrorLogHeld(&errLog);
@@ -273,37 +271,33 @@ void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog)
     for (int i = 0; i < displayCount; i++) {
         codes[i] = nsErrorLogCodeAt(&errLog, i);
         time_t ts = (time_t)nsErrorLogTimeAt(&errLog, i);
-        struct tm *et = ts ? localtime(&ts) : NULL;
-        int dd = et ? et->tm_mday % 100 : 0;
-        int mo = et ? (et->tm_mon + 1) % 100 : 0;
-        int hh = et ? et->tm_hour % 100 : 0;
-        int mi = et ? et->tm_min % 100 : 0;
-        snprintf(dates[i], sizeof(dates[i]), "%02d.%02d.%02d:%02d", dd, mo, hh, mi);
+        struct tm local;
+        const struct tm *et = ts ? localtime_r(&ts, &local) : NULL;
+        formatLogDate(dates[i], sizeof(dates[i]), et, cfg.date_format, cfg.time_format);
     }
 
     char ipStr[32];
     IPAddress ip = WiFi.localIP();
     snprintf(ipStr, sizeof(ipStr), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 
-    StatusPageModel model;
-    buildStatusModel(&model,
+    buildStatusModel(model,
         codes, dates, displayCount, (int)errLog.total,
         ESP.getFreeHeap(), millis(),
         ipStr, "CoreS3",
         M5.Power.getBatteryLevel());
+}
 
-    // ── Render from model ─────────────────────────────────────────
+void drawErrorPage(const Config &cfg, const ErrorLog &errLog) {
+    StatusPageModel model;
+    buildStatus(cfg, errLog, &model);
 
     auto &g = gfx();
-
     g.fillScreen(TFT_BLACK);
     g.setTextDatum(TL_DATUM);
     g.setTextSize(1);
-
-    // Header
     g.setFont(&FreeMono9pt7b);
     g.setTextColor(TFT_WHITE, TFT_BLACK);
-    g.drawString("Date  Time  Error Log", 0, 0);
+    g.drawString("Date        Error", 0, 0);
 
     if (model.display_count == 0) {
         g.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
@@ -311,34 +305,43 @@ void drawStatusPage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog)
     } else {
         for (int i = 0; i < model.display_count; i++) {
             g.setTextColor(TFT_WHITE, TFT_BLACK);
-            g.drawString(model.errors[i].date_str, 0, 20 + i * 18);
-
+            g.drawString(model.errors[i].date_str, 0, 18 + i * 18);
             g.setTextColor(mapColor(model.errors[i].color), TFT_BLACK);
-            g.drawString(model.errors[i].desc_str, 132, 20 + i * 18);
+            g.drawString(model.errors[i].desc_str, 144, 18 + i * 18);
         }
-
-        g.setTextColor(TFT_WHITE, TFT_BLACK);
-        char countStr[32];
-        snprintf(countStr, sizeof(countStr), "Total errors %d", model.error_count);
-        g.drawString(countStr, 0, 20 + model.display_count * 18);
     }
 
-    // System info
-    int infoY = 20 + 7 * 18;
     g.setTextColor(TFT_WHITE, TFT_BLACK);
-    g.drawString(model.heap_str, 0, infoY);
-    g.drawString(model.uptime_str, 0, infoY + 18);
-    g.drawString(model.ip_str, 0, infoY + 36);
-    g.drawString(model.version_str, 0, infoY + 54);
+    char countStr[32];
+    snprintf(countStr, sizeof(countStr), "Total errors %d", model.error_count);
+    g.drawString(countStr, 0, 18 + STATUS_MAX_ERRORS * 18);
+
+    drawBattery(LAYOUT_BATTERY_X, LAYOUT_BAND_Y + 6, model.battery_pct);
+}
+
+void drawSystemPage(const Config &cfg, const ErrorLog &errLog) {
+    StatusPageModel model;
+    buildStatus(cfg, errLog, &model);
+
+    auto &g = gfx();
+    g.fillScreen(TFT_BLACK);
+    g.setTextDatum(TL_DATUM);
+    g.setTextSize(1);
+    g.setFont(&FreeMono9pt7b);
+    g.setTextColor(TFT_WHITE, TFT_BLACK);
+    g.drawString(model.heap_str, 0, 0);
+    g.drawString(model.uptime_str, 0, 18);
+    g.drawString(model.ip_str, 0, 36);
+    g.drawString(model.version_str, 0, 54);
 
     char cfgErr[48];
     formatConfigErrors(&cfg, cfgErr, sizeof(cfgErr));
     if (cfgErr[0]) {
         g.setTextColor(TFT_YELLOW, TFT_BLACK);
-        g.drawString(cfgErr, 0, infoY + 72);
+        g.drawString(cfgErr, 0, 90);
     }
 
-    drawBattery(296, 226, model.battery_pct);
+    drawBattery(LAYOUT_BATTERY_X, LAYOUT_BAND_Y + 6, model.battery_pct);
 }
 
 /* ── Page dispatcher ───────────────────────────────────────────── */
@@ -347,7 +350,8 @@ void drawPage(int page, const Config &cfg, const NSinfo &ns, const ErrorLog &err
               int snoozeRemainingSec) {
     switch (page) {
         case PAGE_GLUCOSE: drawGlucosePage(cfg, ns, errLog, snoozeRemainingSec); break;
-        case PAGE_STATUS:  drawStatusPage(cfg, ns, errLog); break;
+        case PAGE_ERRORS:  drawErrorPage(cfg, errLog); break;
+        case PAGE_SYSTEM:  drawSystemPage(cfg, errLog); break;
         default:           drawGlucosePage(cfg, ns, errLog, snoozeRemainingSec); break;
     }
 

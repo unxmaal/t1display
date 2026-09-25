@@ -102,10 +102,10 @@ struct GlucosePageModel {
 
 /* ── Status page model ─────────────────────────────────────────── */
 
-#define STATUS_MAX_ERRORS 6
+#define STATUS_MAX_ERRORS 10
 
 struct StatusErrorEntry {
-    char date_str[16];    // "DD.MM.HH:MM"
+    char date_str[16];    // formatLogDate()
     char desc_str[32];    // error description
     int  color;           // COLOR_RED or COLOR_YELLOW
 };
@@ -113,7 +113,7 @@ struct StatusErrorEntry {
 struct StatusPageModel {
     /* Errors */
     int  error_count;     // total since boot
-    int  display_count;   // how many to show (0-6)
+    int  display_count;   // how many to show
     StatusErrorEntry errors[STATUS_MAX_ERRORS];
 
     /* System info */
@@ -131,6 +131,9 @@ struct StatusPageModel {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** Human-readable text for an error-log code: app codes, HTTP statuses, HTTPClient errors. */
+void describeErrorCode(int code, char *buf, size_t bufsize);
 
 /**
  * Build a GlucosePageModel from raw data.
@@ -155,7 +158,8 @@ void buildGlucoseModel(
     /* alarm state */
     int alarm_level, int snooze_remaining_sec,
     /* status */
-    int battery_pct, int error_count
+    int battery_pct, int error_count,
+    int time_format
 );
 
 /**

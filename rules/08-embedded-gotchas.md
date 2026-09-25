@@ -2,7 +2,7 @@
 
 ## Memory
 
-- ESP32-S3 has ~512KB internal SRAM plus 8MB PSRAM. Free internal heap is shown on the status page.
+- ESP32-S3 has ~512KB internal SRAM plus 8MB PSRAM. Free internal heap is shown on the system page.
 - ArduinoJson 7 `JsonDocument` is stack-allocated per parse and sized on demand.
 - The 320x240x16bpp canvas is 153,604 bytes and must live in PSRAM (`setPsram(true)`).
 - Avoid dynamic allocation in loops. Prefer stack or global buffers.

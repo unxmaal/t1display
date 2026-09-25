@@ -102,7 +102,7 @@ void test_parse_numeric_fields(void) {
         "default_page = 1\n"
         "sgv_only = 1\n"
         "info_line = 0\n"
-        "date_format = 2\n"
+        "date_format = 1\n"
         "time_format = 1\n"
     );
     int n = parseConfigBuffer(buf, len, &cfg);
@@ -114,7 +114,7 @@ void test_parse_numeric_fields(void) {
     TEST_ASSERT_EQUAL_INT(1, cfg.default_page);
     TEST_ASSERT_EQUAL_INT(1, cfg.sgv_only);
     TEST_ASSERT_EQUAL_INT(0, cfg.info_line);
-    TEST_ASSERT_EQUAL_INT(2, cfg.date_format);
+    TEST_ASSERT_EQUAL_INT(1, cfg.date_format);
     TEST_ASSERT_EQUAL_INT(1, cfg.time_format);
 }
 
@@ -467,6 +467,15 @@ void test_snooze_timeout_cannot_be_zero(void) {
     TEST_ASSERT_EQUAL_INT(1, cfg.snooze_timeout);
 }
 
+void test_default_page_can_be_the_error_log(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t len = loadBuf("[config]\ndefault_page = 2\n");
+    parseConfigBuffer(buf, len, &cfg);
+    TEST_ASSERT_EQUAL_INT(2, cfg.default_page);
+    TEST_ASSERT_EQUAL_INT(0, cfg.configErrors);
+}
+
 void test_validate_date_format_clamped(void) {
     ParsedConfig cfg;
     configDefaults(&cfg);
@@ -476,8 +485,8 @@ void test_validate_date_format_clamped(void) {
         "default_page = 5\n"
     );
     parseConfigBuffer(buf, len, &cfg);
-    TEST_ASSERT_EQUAL_INT(3, cfg.date_format);
-    TEST_ASSERT_EQUAL_INT(1, cfg.default_page);
+    TEST_ASSERT_EQUAL_INT(1, cfg.date_format);
+    TEST_ASSERT_EQUAL_INT(2, cfg.default_page);
 }
 
 
@@ -636,6 +645,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_validate_volume_clamped);
     RUN_TEST(test_validate_timeout_clamped);
     RUN_TEST(test_snooze_timeout_cannot_be_zero);
+    RUN_TEST(test_default_page_can_be_the_error_log);
     RUN_TEST(test_validate_date_format_clamped);
 
     return UNITY_END();
