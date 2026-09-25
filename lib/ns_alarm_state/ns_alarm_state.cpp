@@ -30,6 +30,27 @@ int alarmSeverityRank(int level) {
     }
 }
 
+#define DIRECTION_NONE 0
+#define DIRECTION_LOW  1
+#define DIRECTION_HIGH 2
+#define DIRECTION_DATA 3
+
+static int alarmDirection(int level) {
+    switch (level) {
+        case ALARM_LEVEL_LOW_ALARM:
+        case ALARM_LEVEL_LOW_WARNING:
+            return DIRECTION_LOW;
+        case ALARM_LEVEL_HIGH_ALARM:
+        case ALARM_LEVEL_HIGH_WARNING:
+            return DIRECTION_HIGH;
+        case ALARM_LEVEL_NO_READINGS:
+        case ALARM_LEVEL_LOOP_ERROR:
+            return DIRECTION_DATA;
+        default:
+            return DIRECTION_NONE;
+    }
+}
+
 static unsigned long elapsedMs(unsigned long nowMs, unsigned long thenMs) {
     return nowMs - thenMs;
 }
@@ -45,16 +66,17 @@ unsigned long alarmSnoozeRemainingSec(const AlarmSchedule *s, unsigned long nowM
 
 void alarmScheduleSnooze(AlarmSchedule *s, unsigned long nowMs, int level,
                          int timeout_min) {
-    if (timeout_min <= 0)
-        return;
+    if (timeout_min < 1)
+        timeout_min = 1;
+    unsigned long step = (unsigned long)timeout_min * 60UL;
 
-    if (alarmSnoozeRemainingSec(s, nowMs) == 0)
-        s->snoozeMult = 0;
-
-    if (s->snoozeMult < ALARM_SNOOZE_MAX_MULT)
-        s->snoozeMult++;
-
-    unsigned long dur = (unsigned long)timeout_min * 60UL * (unsigned long)s->snoozeMult;
+    unsigned long dur = step;
+    unsigned long remaining = alarmSnoozeRemainingSec(s, nowMs);
+    if (remaining > 0 && level == s->snoozedLevel) {
+        if (elapsedMs(nowMs, s->snoozeStartMs) < ALARM_SNOOZE_DEBOUNCE_MS)
+            return;
+        dur = remaining + step;
+    }
     if (dur > ALARM_SNOOZE_MAX_SEC)
         dur = ALARM_SNOOZE_MAX_SEC;
 
@@ -69,6 +91,7 @@ bool alarmShouldFire(const AlarmSchedule *s, unsigned long nowMs, int level,
         return false;
 
     if (alarmSnoozeRemainingSec(s, nowMs) > 0 &&
+        alarmDirection(level) == alarmDirection(s->snoozedLevel) &&
         alarmSeverityRank(level) <= alarmSeverityRank(s->snoozedLevel))
         return false;
 
@@ -82,4 +105,16 @@ bool alarmShouldFire(const AlarmSchedule *s, unsigned long nowMs, int level,
 void alarmRecordFired(AlarmSchedule *s, unsigned long nowMs) {
     s->lastFiredMs = nowMs;
     s->hasFired    = true;
+}
+
+int alarmSound(int level) {
+    switch (level) {
+        case ALARM_LEVEL_LOW_ALARM:    return ALARM_SOUND_LOW_ALARM;
+        case ALARM_LEVEL_HIGH_ALARM:   return ALARM_SOUND_HIGH_ALARM;
+        case ALARM_LEVEL_LOW_WARNING:  return ALARM_SOUND_LOW_WARNING;
+        case ALARM_LEVEL_HIGH_WARNING: return ALARM_SOUND_HIGH_WARNING;
+        case ALARM_LEVEL_NO_READINGS:
+        case ALARM_LEVEL_LOOP_ERROR:   return ALARM_SOUND_NO_READINGS;
+        default:                       return ALARM_SOUND_NONE;
+    }
 }

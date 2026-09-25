@@ -108,7 +108,7 @@ static bool applyIntKey(ParsedConfig *cfg, const char *key, const char *val) {
         { "date_format",              &cfg->date_format,                  0,     3 },
         { "time_format",              &cfg->time_format,                  0,     1 },
         { "snd_no_readings",          &cfg->snd_no_readings,              0,  1440 },
-        { "snooze_timeout",           &cfg->snooze_timeout,               0,  1440 },
+        { "snooze_timeout",           &cfg->snooze_timeout,               1,  1440 },
         { "alarm_repeat",             &cfg->alarm_repeat,                 0,  1440 },
         { "warning_volume",           &cfg->warning_volume,               0,   100 },
         { "alarm_volume",             &cfg->alarm_volume,                 0,   100 },
@@ -293,7 +293,7 @@ void validateConfig(ParsedConfig *cfg) {
     cfg->brightness3       = clampInt(cfg->brightness3, 0, 100);
     cfg->warning_volume    = clampInt(cfg->warning_volume, 0, 100);
     cfg->alarm_volume      = clampInt(cfg->alarm_volume, 0, 100);
-    cfg->snooze_timeout    = clampInt(cfg->snooze_timeout, 0, 1440);
+    cfg->snooze_timeout    = clampInt(cfg->snooze_timeout, 1, 1440);
     cfg->alarm_repeat      = clampInt(cfg->alarm_repeat, 0, 1440);
     cfg->snd_no_readings   = clampInt(cfg->snd_no_readings, 0, 1440);
 }

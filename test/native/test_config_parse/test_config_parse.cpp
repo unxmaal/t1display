@@ -455,6 +455,18 @@ void test_validate_timeout_clamped(void) {
     TEST_ASSERT_EQUAL_INT(1440, cfg.snd_no_readings);
 }
 
+void test_snooze_timeout_cannot_be_zero(void) {
+    ParsedConfig cfg;
+    configDefaults(&cfg);
+    size_t len = loadBuf("[config]\nsnooze_timeout = 0\n");
+    parseConfigBuffer(buf, len, &cfg);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, cfg.snooze_timeout,
+        "a zero snooze would make the snooze button silently do nothing");
+    cfg.snooze_timeout = -3;
+    validateConfig(&cfg);
+    TEST_ASSERT_EQUAL_INT(1, cfg.snooze_timeout);
+}
+
 void test_validate_date_format_clamped(void) {
     ParsedConfig cfg;
     configDefaults(&cfg);
@@ -623,6 +635,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_validate_boolean_fields_clamped);
     RUN_TEST(test_validate_volume_clamped);
     RUN_TEST(test_validate_timeout_clamped);
+    RUN_TEST(test_snooze_timeout_cannot_be_zero);
     RUN_TEST(test_validate_date_format_clamped);
 
     return UNITY_END();

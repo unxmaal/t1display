@@ -37,10 +37,14 @@ Nothing in the alarm path reads the wall clock, so alarms work on a device that
 never synced NTP.
 
 - Repeat interval is `alarm_repeat` minutes since the last fire.
-- Snooze records the severity that was snoozed. A more severe condition breaks
-  through an active snooze; an equal or lesser one does not.
-- Repeat presses stack to `ALARM_SNOOZE_MAX_MULT`, capped at
-  `ALARM_SNOOZE_MAX_SEC`, and the multiplier resets once a snooze expires.
+- Snooze records the level that was snoozed and covers only the same direction
+  (low, high, or data: no readings and loop error) at equal or lesser severity.
+  A condition in another direction, or a more severe one, always sounds.
+- A press for the same level within `ALARM_SNOOZE_DEBOUNCE_MS` is ignored. A
+  later press adds one `snooze_timeout`, capped at `ALARM_SNOOZE_MAX_SEC`.
+- `snooze_timeout` is at least 1 minute, so the button can never do nothing.
+- `alarmSound()` maps a level to its melody. Loop error uses the no-readings
+  melody, never a glucose alarm's.
 - Snooze does not survive a reboot. There is no NVS and no UDP sync.
 
 The remaining snooze time is passed into `drawPage()` and rendered in the alarm

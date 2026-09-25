@@ -168,6 +168,11 @@ The CoreS3 touch zones sit along the bottom of the screen.
 | Centre third | Snooze alarms |
 | Right third | Switch page |
 
+Snooze lasts `snooze_timeout` minutes (at least 1) and covers only the alarm you
+snoozed and milder ones in the same direction. Snoozing a low never silences a
+high, and neither silences a no-readings alert. A second tap within 10 seconds
+counts as one; a later tap adds another `snooze_timeout`, up to an hour.
+
 ## Building
 
 Requires [PlatformIO](https://platformio.org/).
