@@ -11,18 +11,19 @@
 #define NS_ALARM_STATE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define ALARM_SNOOZE_MAX_SEC     (60UL * 60UL)
-#define ALARM_SNOOZE_DEBOUNCE_MS 10000UL
+#define ALARM_SNOOZE_MAX_SEC     (60U * 60U)
+#define ALARM_SNOOZE_DEBOUNCE_MS 10000U
 
 struct AlarmSchedule {
-    unsigned long lastFiredMs;
-    unsigned long snoozeStartMs;
-    unsigned long snoozeDurationSec;
+    uint32_t lastFiredMs;
+    uint32_t snoozeStartMs;
+    uint32_t snoozeDurationSec;
     int           snoozedLevel;
     bool          hasFired;
 };
@@ -37,21 +38,21 @@ int alarmSeverityRank(int level);
  * level within ALARM_SNOOZE_DEBOUNCE_MS of the last is ignored; a later one
  * adds another timeout_min, capped at ALARM_SNOOZE_MAX_SEC.
  */
-void alarmScheduleSnooze(AlarmSchedule *s, unsigned long nowMs, int level,
+void alarmScheduleSnooze(AlarmSchedule *s, uint32_t nowMs, int level,
                          int timeout_min);
 
 /** Seconds left on the active snooze, or 0. */
-unsigned long alarmSnoozeRemainingSec(const AlarmSchedule *s, unsigned long nowMs);
+uint32_t alarmSnoozeRemainingSec(const AlarmSchedule *s, uint32_t nowMs);
 
 /**
  * True when the level is due to sound: not normal, interval elapsed, and not
  * covered by the snooze. A snooze covers only levels in the same direction
  * (low, high, or data) that are no more severe than the snoozed one.
  */
-bool alarmShouldFire(const AlarmSchedule *s, unsigned long nowMs, int level,
+bool alarmShouldFire(const AlarmSchedule *s, uint32_t nowMs, int level,
                      int alarm_repeat_min);
 
-void alarmRecordFired(AlarmSchedule *s, unsigned long nowMs);
+void alarmRecordFired(AlarmSchedule *s, uint32_t nowMs);
 
 #define ALARM_SOUND_NONE         0
 #define ALARM_SOUND_LOW_ALARM    1

@@ -51,27 +51,27 @@ static int alarmDirection(int level) {
     }
 }
 
-static unsigned long elapsedMs(unsigned long nowMs, unsigned long thenMs) {
+static uint32_t elapsedMs(uint32_t nowMs, uint32_t thenMs) {
     return nowMs - thenMs;
 }
 
-unsigned long alarmSnoozeRemainingSec(const AlarmSchedule *s, unsigned long nowMs) {
+uint32_t alarmSnoozeRemainingSec(const AlarmSchedule *s, uint32_t nowMs) {
     if (s->snoozeDurationSec == 0)
         return 0;
-    unsigned long goneSec = elapsedMs(nowMs, s->snoozeStartMs) / 1000UL;
+    uint32_t goneSec = elapsedMs(nowMs, s->snoozeStartMs) / 1000U;
     if (goneSec >= s->snoozeDurationSec)
         return 0;
     return s->snoozeDurationSec - goneSec;
 }
 
-void alarmScheduleSnooze(AlarmSchedule *s, unsigned long nowMs, int level,
+void alarmScheduleSnooze(AlarmSchedule *s, uint32_t nowMs, int level,
                          int timeout_min) {
     if (timeout_min < 1)
         timeout_min = 1;
-    unsigned long step = (unsigned long)timeout_min * 60UL;
+    uint32_t step = (uint32_t)timeout_min * 60U;
 
-    unsigned long dur = step;
-    unsigned long remaining = alarmSnoozeRemainingSec(s, nowMs);
+    uint32_t dur = step;
+    uint32_t remaining = alarmSnoozeRemainingSec(s, nowMs);
     if (remaining > 0 && level == s->snoozedLevel) {
         if (elapsedMs(nowMs, s->snoozeStartMs) < ALARM_SNOOZE_DEBOUNCE_MS)
             return;
@@ -85,7 +85,7 @@ void alarmScheduleSnooze(AlarmSchedule *s, unsigned long nowMs, int level,
     s->snoozedLevel      = level;
 }
 
-bool alarmShouldFire(const AlarmSchedule *s, unsigned long nowMs, int level,
+bool alarmShouldFire(const AlarmSchedule *s, uint32_t nowMs, int level,
                      int alarm_repeat_min) {
     if (level == ALARM_LEVEL_NORMAL)
         return false;
@@ -98,11 +98,11 @@ bool alarmShouldFire(const AlarmSchedule *s, unsigned long nowMs, int level,
     if (!s->hasFired)
         return true;
 
-    unsigned long repeatMs = (unsigned long)alarm_repeat_min * 60UL * 1000UL;
+    uint32_t repeatMs = (uint32_t)alarm_repeat_min * 60U * 1000U;
     return elapsedMs(nowMs, s->lastFiredMs) > repeatMs;
 }
 
-void alarmRecordFired(AlarmSchedule *s, unsigned long nowMs) {
+void alarmRecordFired(AlarmSchedule *s, uint32_t nowMs) {
     s->lastFiredMs = nowMs;
     s->hasFired    = true;
 }

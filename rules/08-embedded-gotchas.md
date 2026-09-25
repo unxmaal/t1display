@@ -10,6 +10,10 @@
 ## Timing
 
 - `loop()` runs continuously. Timing is managed via `millis()` comparisons, not `delay()`.
+- Millisecond values in `lib/` are `uint32_t`, never `unsigned long`. `millis()`
+  is 32-bit on the ESP32 but `unsigned long` is 64-bit on the native test host,
+  so an `unsigned long` rollover test never actually wraps. Compare with
+  unsigned subtraction, or `(int32_t)(a - b)` for ordering.
 - Web server processing happens every 20ms (`msCount` check).
 - Nightscout API polling: every 15 seconds, but only fetches when data age > 5 minutes.
 - Don't add blocking operations to `loop()` — they freeze the display and web server.

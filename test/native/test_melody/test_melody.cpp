@@ -1,4 +1,5 @@
 #include <unity.h>
+#include <stdint.h>
 #include "ns_melody.h"
 
 void setUp(void) {}
@@ -71,10 +72,14 @@ void test_restart_replaces_current_melody(void) {
 
 void test_rollover_safe(void) {
     melodyInit(&m);
-    unsigned long nearMax = 0xFFFFFFFFUL - 50;
+    uint32_t nearMax = UINT32_MAX - 50;
     melodyStart(&m, NOTES, DURS, 3, nearMax);
     TEST_ASSERT_EQUAL_INT(0, melodyNextNote(&m, nearMax));
-    TEST_ASSERT_EQUAL_INT_MESSAGE(1, melodyNextNote(&m, nearMax + 200),
+    uint32_t early = nearMax + 60;
+    uint32_t due   = nearMax + 1000;
+    TEST_ASSERT_TRUE_MESSAGE(early < nearMax && due < nearMax, "the test must actually wrap");
+    TEST_ASSERT_EQUAL_INT(-1, melodyNextNote(&m, early));
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, melodyNextNote(&m, due),
         "a millis() wrap mid-melody must not stall playback");
 }
 
