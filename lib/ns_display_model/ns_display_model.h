@@ -41,6 +41,20 @@
 #define FONT_SANS_9        3
 #define FONT_MONO_9        4
 
+/* ── Bottom band layout (pixels) ───────────────────────────────── */
+
+#define LAYOUT_SCREEN_W      320
+#define LAYOUT_BAND_Y        220
+#define LAYOUT_BAND_H        20
+#define LAYOUT_BADGE_X       2
+#define LAYOUT_BADGE_W       10
+#define LAYOUT_BATTERY_X     296
+#define LAYOUT_BATTERY_W     22
+#define LAYOUT_ALARM_BAR_X   14
+#define LAYOUT_ALARM_BAR_W   280
+#define LAYOUT_LABEL_LEFT_X  53
+#define LAYOUT_LABEL_RIGHT_X 250
+
 /* ── Glucose page model ────────────────────────────────────────── */
 
 struct GlucosePageModel {
@@ -81,6 +95,9 @@ struct GlucosePageModel {
     int  alarm_bar_bg;        // COLOR_RED, COLOR_YELLOW, or COLOR_BLACK
     int  alarm_bar_fg;        // foreground text color
     char alarm_bar_text[16];  // snooze countdown or empty
+
+    /* Touch zone labels */
+    bool show_touch_labels;
 };
 
 /* ── Status page model ─────────────────────────────────────────── */
