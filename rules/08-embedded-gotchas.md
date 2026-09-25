@@ -3,8 +3,9 @@
 ## Memory
 
 - ESP32-S3 has ~512KB internal SRAM plus 8MB PSRAM. Free internal heap is shown on the system page.
-- ArduinoJson 7 `JsonDocument` is stack-allocated per parse and sized on demand.
-- The 320x240x16bpp canvas is 153,604 bytes and must live in PSRAM (`setPsram(true)`).
+- ArduinoJson 7 `JsonDocument` is a small stack object whose storage is heap-allocated
+  (`malloc`) on demand, per parse.
+- The 320x240x16bpp canvas is 153,600 bytes and must live in PSRAM (`setPsram(true)`).
 - Avoid dynamic allocation in loops. Prefer stack or global buffers.
 
 ## Timing
@@ -14,9 +15,10 @@
   is 32-bit on the ESP32 but `unsigned long` is 64-bit on the native test host,
   so an `unsigned long` rollover test never actually wraps. Compare with
   unsigned subtraction, or `(int32_t)(a - b)` for ordering.
-- Web server processing happens every 20ms (`msCount` check).
-- Nightscout API polling: every 15 seconds, but only fetches when data age > 5 minutes.
-- Don't add blocking operations to `loop()` — they freeze the display and web server.
+- The web server runs on its own task (`webTask`), polling `handleClient()` every 5 ms.
+- Nightscout polling: `loop()` checks every 15 seconds and asks nsTask to fetch once
+  the reading is 5 minutes old.
+- Don't add blocking operations to `loop()` — they freeze the display, touch and alarms.
 
 ## Persistence
 

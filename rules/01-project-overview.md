@@ -20,7 +20,8 @@ The GPL-3.0 LICENSE is the one upstream artifact deliberately retained.
 ## License
 
 GNU General Public License v3.0 or later. Copyright 2024-2026 Eric Dodd.
-Every source file carries an SPDX-License-Identifier header.
+Every source file under `cores3/` and `lib/` carries an SPDX-License-Identifier
+header. Test suites do not.
 
 ## Hardware Target
 
@@ -29,7 +30,8 @@ speaker). No compile-time board branching. Optional DIN Base with 500mAh battery
 
 ## Key External Services
 
-- **Nightscout** — the only CGM data source (REST API v1)
+- **Nightscout** — the only CGM data source: API v1 `entries.json` for the sgv,
+  API v2 `properties/delta` for the delta
 - **NTP** — `pool.ntp.org`, `time.nist.gov`, `time.google.com`
 - **OTA** — ArduinoOTA over the local network, hostname from `device_name`
 

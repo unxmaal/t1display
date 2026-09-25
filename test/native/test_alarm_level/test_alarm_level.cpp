@@ -6,7 +6,7 @@ void tearDown(void) {}
 
 /* ── alarmLevel ────────────────────────────────────────────────── */
 
-/* Typical alarm config:
+/* Test thresholds, deliberately not the shipped defaults:
  *   snd_alarm=3.0 (low alarm)  snd_warning=4.0 (low warning)
  *   snd_alarm_high=14.0        snd_warning_high=10.0
  *   snd_no_readings=20 (minutes)
