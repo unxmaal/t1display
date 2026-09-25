@@ -15,6 +15,7 @@ There is no NVS/Preferences fallback and no bootstrap AP mode.
 - `yellow_low/high`, `red_low/high` — display color thresholds
 - `snd_alarm`, `snd_warning`, `snd_alarm_high`, `snd_warning_high` — audio thresholds
 - `wlanssid[10][64]`, `wlanpass[10][64]`
+- `tz` — POSIX TZ string (`tzStringValid()`); when set it overrides `timeZone`/`dst`
 - `unknownKeys` — count of keys the parser did not recognize
 - `configErrors`, `firstBadKey` — everything that was not taken as written
 

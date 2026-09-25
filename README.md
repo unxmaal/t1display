@@ -59,7 +59,7 @@ nightscout = https://your-nightscout-site.example.com
 token = your-api-token
 name = YourName
 device_name = t1display
-time_zone = 3600
+tz = EST5EDT,M3.2.0,M11.1.0
 show_mgdl = 1
 yellow_low = 4.5
 yellow_high = 9.0
@@ -101,6 +101,19 @@ no-readings alert instead of a low alarm.
 mg/dL and mmol/L convert at 18.01559, the factor Nightscout uses.
 
 ### Clock and dates
+
+`tz` takes a POSIX TZ string, which carries the daylight-saving rules, so the
+clock changes on its own twice a year. Examples:
+- `UTC0`
+- `GMT0BST,M3.5.0/1,M10.5.0` (UK)
+- `CET-1CEST,M3.5.0,M10.5.0/3` (central Europe)
+- `EST5EDT,M3.2.0,M11.1.0` (US Eastern)
+- `AEST-10AEDT,M10.1.0,M4.1.0/3` (Sydney)
+
+POSIX puts the sign the opposite way from UTC offsets: `EST5` means five hours
+behind UTC. An invalid `tz` counts as a config error. The older `time_zone` and
+`dst` keys, fixed offsets in seconds, are used only when `tz` is empty. With
+neither set, the device runs on UTC.
 
 `time_format = 0` shows 24-hour time, `1` shows 12-hour (`1:07p`).
 `date_format = 0` writes error-log dates day first (`03.04`), `1` month first

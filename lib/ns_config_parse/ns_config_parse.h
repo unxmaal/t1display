@@ -33,6 +33,7 @@ struct ParsedConfig {
 
     int timeZone;
     int dst;
+    char tz[64];
 
     int show_mgdl;
     int show_current_time;
@@ -118,6 +119,9 @@ int parseConfigBuffer(const char *buf, size_t len, ParsedConfig *cfg);
 void validateConfig(ParsedConfig *cfg);
 
 /** OTA is only started when a password is configured. */
+/** True for "" or a POSIX TZ string ("EST5EDT,M3.2.0,M11.1.0", "<+0330>-3:30"). */
+bool tzStringValid(const char *tz);
+
 /** True for keys whose values the web form must never render. */
 bool configIsSecretKey(const char *key);
 

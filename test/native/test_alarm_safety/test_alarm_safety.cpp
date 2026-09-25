@@ -141,7 +141,7 @@ void test_integer_overflow_rejected(void) {
     configDefaults(&cfg);
     size_t n = loadBuf("[config]\ntime_zone = 99999999999999999999\n");
     parseConfigBuffer(buf, n, &cfg);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(3600, cfg.timeZone,
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, cfg.timeZone,
         "an unparsable time_zone must fall back to the default, not to atoi garbage");
 }
 

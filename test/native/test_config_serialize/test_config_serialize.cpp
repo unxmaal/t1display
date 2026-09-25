@@ -70,6 +70,7 @@ void test_roundtrip_custom_values(void) {
     strlcpy(orig.deviceName, "BedsideMon", sizeof(orig.deviceName));
     orig.timeZone = -18000;
     orig.dst = 1;
+    strlcpy(orig.tz, "EST5EDT,M3.2.0,M11.1.0", sizeof(orig.tz));
     orig.show_mgdl = 1;
     orig.show_current_time = 1;
     orig.default_page = 1;
@@ -119,6 +120,7 @@ void test_roundtrip_custom_values(void) {
     TEST_ASSERT_EQUAL_STRING("BedsideMon", parsed.deviceName);
     TEST_ASSERT_EQUAL_INT(-18000, parsed.timeZone);
     TEST_ASSERT_EQUAL_INT(1, parsed.dst);
+    TEST_ASSERT_EQUAL_STRING("EST5EDT,M3.2.0,M11.1.0", parsed.tz);
     TEST_ASSERT_EQUAL_INT(1, parsed.show_mgdl);
     TEST_ASSERT_EQUAL_INT(1, parsed.default_page);
     TEST_ASSERT_FLOAT_WITHIN(0.1f, 5.0f, parsed.yellow_low);
