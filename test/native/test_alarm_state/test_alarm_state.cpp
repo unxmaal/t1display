@@ -1,5 +1,6 @@
 #include <unity.h>
 #include <string.h>
+#include <stdint.h>
 #include "ns_alarm_state.h"
 #include "ns_pure_logic.h"
 
@@ -30,11 +31,29 @@ void test_timing_does_not_need_a_wall_clock(void) {
 
 void test_millis_rollover_does_not_block_alarms(void) {
     alarmScheduleInit(&s);
-    unsigned long nearMax = 0xFFFFFFFFUL - MIN_MS(1);
+    uint32_t nearMax = UINT32_MAX - MIN_MS(1);
     alarmRecordFired(&s, nearMax);
-    unsigned long afterWrap = nearMax + MIN_MS(6);
+    uint32_t afterWrap = nearMax + MIN_MS(6);
+    TEST_ASSERT_TRUE_MESSAGE(afterWrap < nearMax, "the test must actually wrap");
     TEST_ASSERT_TRUE_MESSAGE(alarmShouldFire(&s, afterWrap, ALARM_LEVEL_LOW_ALARM, 5),
         "a millis() rollover must not suppress alarms for 49 days");
+}
+
+void test_repeat_interval_holds_across_rollover(void) {
+    alarmScheduleInit(&s);
+    uint32_t nearMax = UINT32_MAX - 1000;
+    alarmRecordFired(&s, nearMax);
+    uint32_t oneMinLater = nearMax + MIN_MS(1);
+    TEST_ASSERT_FALSE_MESSAGE(alarmShouldFire(&s, oneMinLater, ALARM_LEVEL_LOW_ALARM, 5),
+        "one minute after a wrap is one minute, not 49 days");
+}
+
+void test_snooze_counts_down_across_rollover(void) {
+    alarmScheduleInit(&s);
+    uint32_t nearMax = UINT32_MAX - 1000;
+    alarmScheduleSnooze(&s, nearMax, ALARM_LEVEL_LOW_ALARM, 30);
+    uint32_t tenMinLater = nearMax + MIN_MS(10);
+    TEST_ASSERT_UINT32_WITHIN(5, 20UL * 60UL, alarmSnoozeRemainingSec(&s, tenMinLater));
 }
 
 void test_snooze_suppresses_same_level(void) {
@@ -217,6 +236,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_repeat_suppressed_until_interval_elapses);
     RUN_TEST(test_timing_does_not_need_a_wall_clock);
     RUN_TEST(test_millis_rollover_does_not_block_alarms);
+    RUN_TEST(test_repeat_interval_holds_across_rollover);
+    RUN_TEST(test_snooze_counts_down_across_rollover);
     RUN_TEST(test_snooze_suppresses_same_level);
     RUN_TEST(test_snooze_expires);
     RUN_TEST(test_snoozing_no_readings_does_not_silence_hypo);

@@ -13,11 +13,11 @@
 
 /* ── AlarmState ────────────────────────────────────────────────── */
 
-void AlarmState::snooze(unsigned long nowMs, int level, int timeout_min) {
+void AlarmState::snooze(uint32_t nowMs, int level, int timeout_min) {
     alarmScheduleSnooze(&sched, nowMs, level, timeout_min);
 }
 
-unsigned long AlarmState::snoozeRemaining(unsigned long nowMs) const {
+uint32_t AlarmState::snoozeRemaining(uint32_t nowMs) const {
     return alarmSnoozeRemainingSec(&sched, nowMs);
 }
 
@@ -38,7 +38,7 @@ static void playMelody(int volume, const int *notes, const int *durations, int c
 void serviceAlerts() {
     if (!melodyActive(&melody))
         return;
-    unsigned long nowMs = millis();
+    uint32_t nowMs = millis();
     int idx = melodyNextNote(&melody, nowMs);
     if (idx >= 0)
         M5.Speaker.tone(melodyFreqAt(&melody, idx), melodyDurationAt(&melody, idx));
@@ -97,7 +97,7 @@ int currentAlarmLevel(const Config &cfg, const NSinfo &ns) {
 
 void checkAlarms(const Config &cfg, const NSinfo &ns, AlarmState &alarm) {
     int level = currentAlarmLevel(cfg, ns);
-    unsigned long nowMs = millis();
+    uint32_t nowMs = millis();
 
     if (!alarmShouldFire(&alarm.sched, nowMs, level, cfg.alarm_repeat))
         return;

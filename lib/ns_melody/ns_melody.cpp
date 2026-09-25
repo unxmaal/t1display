@@ -13,7 +13,7 @@ void melodyInit(MelodySequencer *m) {
 }
 
 void melodyStart(MelodySequencer *m, const int *notes, const int *durations,
-                 int count, unsigned long nowMs) {
+                 int count, uint32_t nowMs) {
     if (!notes || !durations || count <= 0) {
         melodyInit(m);
         return;
@@ -30,14 +30,14 @@ bool melodyActive(const MelodySequencer *m) {
     return m->active;
 }
 
-int melodyNextNote(MelodySequencer *m, unsigned long nowMs) {
+int melodyNextNote(MelodySequencer *m, uint32_t nowMs) {
     if (!m->active)
         return -1;
-    if ((long)(nowMs - m->dueMs) < 0)
+    if ((int32_t)(nowMs - m->dueMs) < 0)
         return -1;
 
     int idx = m->next;
-    m->dueMs = nowMs + (unsigned long)m->durations[idx] + MELODY_NOTE_GAP_MS;
+    m->dueMs = nowMs + (uint32_t)m->durations[idx] + MELODY_NOTE_GAP_MS;
     m->next++;
     if (m->next >= m->count)
         m->active = false;

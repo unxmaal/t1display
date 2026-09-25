@@ -8,6 +8,7 @@
 #define NS_MELODY_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,19 +21,19 @@ struct MelodySequencer {
     const int    *durations;
     int           count;
     int           next;
-    unsigned long dueMs;
+    uint32_t dueMs;
     bool          active;
 };
 
 void melodyInit(MelodySequencer *m);
 
 void melodyStart(MelodySequencer *m, const int *notes, const int *durations,
-                 int count, unsigned long nowMs);
+                 int count, uint32_t nowMs);
 
 bool melodyActive(const MelodySequencer *m);
 
 /** Index of the note to emit now, or -1 when nothing is due. */
-int melodyNextNote(MelodySequencer *m, unsigned long nowMs);
+int melodyNextNote(MelodySequencer *m, uint32_t nowMs);
 
 int melodyFreqAt(const MelodySequencer *m, int index);
 int melodyDurationAt(const MelodySequencer *m, int index);

@@ -13,8 +13,8 @@
 struct AlarmState {
     AlarmSchedule sched;
 
-    void snooze(unsigned long nowMs, int level, int timeout_min);
-    unsigned long snoozeRemaining(unsigned long nowMs) const;
+    void snooze(uint32_t nowMs, int level, int timeout_min);
+    uint32_t snoozeRemaining(uint32_t nowMs) const;
 };
 
 /**
