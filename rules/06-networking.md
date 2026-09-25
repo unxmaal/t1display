@@ -45,5 +45,10 @@ any page via an `<img>` tag.
 ArduinoOTA, started only when `ota_password` is set. With it unset the port
 stays closed rather than open and unauthenticated.
 
-mDNS comes up as a side effect of `ArduinoOTA.begin()`, so `<device_name>.local`
-only resolves when OTA is enabled.
+mDNS is started by the firmware itself once Wi-Fi is up, advertising `http` on
+port 80, so `<device_name>.local` resolves whether or not OTA is enabled.
+ArduinoOTA's own mDNS is disabled; `setupOTA()` adds the `arduino` service.
+
+The web config, OTA and mDNS start the first time `loop()` sees Wi-Fi connected
+(`servicesDue()` in `lib/ns_runtime/`), not only at boot. SNTP is configured
+before connecting, so the clock also syncs after a late connect.

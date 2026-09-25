@@ -34,6 +34,11 @@ snooze and restart state live in RAM and reset on power cycle.
 
 ## Watchdog / Restart
 
+- The task watchdog is `NS_WDT_TIMEOUT_SEC`. nsTask resets it between the two
+  Nightscout fetches, and `NS_FETCH_WINDOW_MS` (one fetch's connect + read
+  timeout) must stay under half of it, which `test_runtime` asserts. Raise a
+  timeout only with that test in view.
+
 - Scheduled restart via `restart_at_time` config (HH:MM format)
 - Error-triggered restart via `restart_at_logged_errors`
 - Snooze state is RAM-only and does not survive a restart

@@ -236,6 +236,7 @@ host lives in `lib/` and is compiled into both the firmware and the native tests
 - `lib/ns_json_parse/` — Nightscout API JSON parsing
 - `lib/ns_display_model/` — display layout as pure data structs
 - `lib/ns_config_parse/` — INI parsing, validation, and serialization
+- `lib/ns_runtime/` — watchdog and HTTP timeout budget, network service start latch
 - `test/native/` — Unity test suites, one directory per suite
 - `rules/` — project rules consumed by the knowledge MCP server
 - `tools/` — the knowledge MCP server itself
