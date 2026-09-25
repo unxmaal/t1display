@@ -243,11 +243,18 @@ pio test -e native
 cd cores3 && pio device monitor -b 115200
 
 # Build for the Wokwi simulator (joins the Wokwi-GUEST virtual network)
-cd cores3 && pio run -e m5stack-cores3 --project-option="build_flags=-DWOKWI_SIM"
+cd cores3 && pio run -e wokwi
 ```
 
 The `Wokwi-GUEST` open network is only joined in simulator builds. Release
 firmware never associates with it.
+
+CI runs the `wokwi` build in the Wokwi simulator as a boot smoke test. It
+passes once serial shows `[BOOT] Setup complete` without a `Guru Meditation`
+panic within 90 seconds. It needs a `WOKWI_CLI_TOKEN` repository secret (free
+plan: 50 CI minutes a month); without one the job builds and then skips the
+run with a notice. The job is non-blocking, and its serial log is uploaded as
+an artifact.
 
 ## Architecture
 
