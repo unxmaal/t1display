@@ -142,8 +142,11 @@ void buildGlucoseModel(
     model->show_alarm_bar = (alarm_level != ALARM_LEVEL_NORMAL || snooze_remaining_sec > 0);
     if (snooze_remaining_sec > 0) {
         snprintf(model->alarm_bar_text, sizeof(model->alarm_bar_text),
-                 "%d", (snooze_remaining_sec + 59) / 60);
+                 "SNOOZED %d min", (snooze_remaining_sec + 59) / 60);
+    } else if (alarm_level != ALARM_LEVEL_NORMAL) {
+        strlcpy(model->alarm_bar_text, "TAP TO SNOOZE", sizeof(model->alarm_bar_text));
     }
+    model->show_touch_labels = !model->show_alarm_bar;
 }
 
 /* ── Status page ───────────────────────────────────────────────── */

@@ -134,7 +134,8 @@ void test_glucose_model_snooze_countdown(void) {
 
     TEST_ASSERT_TRUE(m.show_alarm_bar);
     TEST_ASSERT_EQUAL_INT(COLOR_YELLOW, m.alarm_bar_bg);
-    TEST_ASSERT_EQUAL_STRING("5", m.alarm_bar_text);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("SNOOZED 5 min", m.alarm_bar_text,
+        "a bare number in the alarm bar does not say what it counts");
 }
 
 void test_glucose_model_double_digit_mmol(void) {
@@ -189,6 +190,54 @@ void test_glucose_model_no_data_hides_arrow(void) {
     GlucosePageModel m;
     buildDir(&m, "TripleUp", 40 * 60);
     TEST_ASSERT_EQUAL_INT(ARROW_NONE, m.arrow_style);
+}
+
+static void buildLevel(GlucosePageModel *m, int level, int snooze_sec) {
+    buildGlucoseModel(m,
+        6.0f, 108.0f, false,
+        "Flat", 0, "+0.1",
+        12, 0,
+        1000, 1000,
+        4.5f, 9.0f, 3.9f, 11.0f,
+        level, snooze_sec,
+        60, 1);
+}
+
+void test_active_alarm_bar_says_how_to_silence_it(void) {
+    GlucosePageModel m;
+    buildLevel(&m, ALARM_LEVEL_LOW_ALARM, 0);
+    TEST_ASSERT_TRUE(m.show_alarm_bar);
+    TEST_ASSERT_EQUAL_STRING("TAP TO SNOOZE", m.alarm_bar_text);
+}
+
+void test_touch_labels_shown_when_no_alarm(void) {
+    GlucosePageModel m;
+    buildLevel(&m, ALARM_LEVEL_NORMAL, 0);
+    TEST_ASSERT_FALSE(m.show_alarm_bar);
+    TEST_ASSERT_TRUE_MESSAGE(m.show_touch_labels,
+        "the bottom band is three buttons; without labels nothing says so");
+}
+
+void test_touch_labels_give_way_to_the_alarm_bar(void) {
+    GlucosePageModel m;
+    buildLevel(&m, ALARM_LEVEL_HIGH_WARNING, 0);
+    TEST_ASSERT_FALSE(m.show_touch_labels);
+    buildLevel(&m, ALARM_LEVEL_NORMAL, 120);
+    TEST_ASSERT_FALSE(m.show_touch_labels);
+}
+
+void test_alarm_bar_leaves_room_for_badge_and_battery(void) {
+    TEST_ASSERT_TRUE_MESSAGE(LAYOUT_BADGE_X + LAYOUT_BADGE_W <= LAYOUT_ALARM_BAR_X,
+        "the error badge must stay visible during an alarm");
+    TEST_ASSERT_TRUE_MESSAGE(LAYOUT_ALARM_BAR_X + LAYOUT_ALARM_BAR_W <= LAYOUT_BATTERY_X,
+        "the battery must stay visible during an alarm");
+    TEST_ASSERT_TRUE(LAYOUT_BATTERY_X + LAYOUT_BATTERY_W <= LAYOUT_SCREEN_W);
+}
+
+void test_labels_sit_in_their_touch_zones(void) {
+    TEST_ASSERT_TRUE(LAYOUT_LABEL_LEFT_X < LAYOUT_SCREEN_W / 3);
+    TEST_ASSERT_TRUE(LAYOUT_LABEL_RIGHT_X > 2 * LAYOUT_SCREEN_W / 3);
+    TEST_ASSERT_TRUE(LAYOUT_LABEL_RIGHT_X < LAYOUT_BATTERY_X);
 }
 
 void test_status_model_no_errors(void) {
@@ -279,6 +328,11 @@ int main(int argc, char **argv) {
     RUN_TEST(test_glucose_model_rate_out_of_range_has_its_own_glyph);
     RUN_TEST(test_glucose_model_ordinary_trend_is_single);
     RUN_TEST(test_glucose_model_no_data_hides_arrow);
+    RUN_TEST(test_active_alarm_bar_says_how_to_silence_it);
+    RUN_TEST(test_touch_labels_shown_when_no_alarm);
+    RUN_TEST(test_touch_labels_give_way_to_the_alarm_bar);
+    RUN_TEST(test_alarm_bar_leaves_room_for_badge_and_battery);
+    RUN_TEST(test_labels_sit_in_their_touch_zones);
     RUN_TEST(test_status_model_no_errors);
     RUN_TEST(test_status_model_with_errors);
     RUN_TEST(test_status_model_null_errors_no_crash);

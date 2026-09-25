@@ -182,7 +182,10 @@ status page, over serial, and on the page shown after a web save, e.g.
 
 ## Touch controls
 
-The CoreS3 touch zones sit along the bottom of the screen.
+The CoreS3 touch zones sit along the bottom of the screen. When no alarm is
+showing they are labelled `BRIGHT` and `PAGE`. During an alarm the bar across
+the bottom reads `TAP TO SNOOZE`, then `SNOOZED n min`. The bar stops short of
+the error badge and the battery icon, so both stay visible.
 
 | Zone | Action |
 |------|--------|

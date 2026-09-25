@@ -226,25 +226,34 @@ void drawGlucosePage(const Config &cfg, const NSinfo &ns, const ErrorLog &errLog
         g.drawString(model.age_str, 318, 45);
     }
 
-    // Bottom bar
-    drawBattery(296, 226, model.battery_pct);
+    // Bottom band
+    drawBattery(LAYOUT_BATTERY_X, LAYOUT_BAND_Y + 6, model.battery_pct);
 
     if (model.show_error_badge) {
         g.setTextDatum(TL_DATUM);
         g.setTextColor(TFT_RED, TFT_BLACK);
         g.setFont(&FreeSans9pt7b);
-        g.drawString("!", 2, 224);
+        g.drawString("!", LAYOUT_BADGE_X, LAYOUT_BAND_Y + 4);
     }
 
-    // Alarm bar
+    if (model.show_touch_labels) {
+        g.setTextDatum(MC_DATUM);
+        g.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        g.setFont(&FreeSans9pt7b);
+        g.drawString("BRIGHT", LAYOUT_LABEL_LEFT_X, LAYOUT_BAND_Y + LAYOUT_BAND_H / 2);
+        g.drawString("PAGE", LAYOUT_LABEL_RIGHT_X, LAYOUT_BAND_Y + LAYOUT_BAND_H / 2);
+    }
+
     if (model.show_alarm_bar) {
-        g.fillRect(0, 220, 320, 20, mapColor(model.alarm_bar_bg));
+        g.fillRect(LAYOUT_ALARM_BAR_X, LAYOUT_BAND_Y, LAYOUT_ALARM_BAR_W, LAYOUT_BAND_H,
+                   mapColor(model.alarm_bar_bg));
         if (model.alarm_bar_text[0] != '\0') {
             g.setTextDatum(MC_DATUM);
             g.setTextColor(mapColor(model.alarm_bar_fg),
                                     mapColor(model.alarm_bar_bg));
             g.setFont(&FreeSansBold12pt7b);
-            g.drawString(model.alarm_bar_text, 160, 230);
+            g.drawString(model.alarm_bar_text, LAYOUT_SCREEN_W / 2,
+                         LAYOUT_BAND_Y + LAYOUT_BAND_H / 2);
         }
     }
 }

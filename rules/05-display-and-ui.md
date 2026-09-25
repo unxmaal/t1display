@@ -56,3 +56,12 @@ hand-roll `setRawState()` calls.
 (Triple*) or `ARROW_RATE_OUT_OF_RANGE`. `buildGlucoseModel()` sets
 `arrow_style` and forces `ARROW_NONE` for no-data and sensor-error states. Never
 let an unrecognised direction share the rendering of a known one.
+
+## Bottom band
+
+The bottom 20 px holds the error badge, the touch labels, the alarm bar and the
+battery. Positions are the `LAYOUT_*` constants in `ns_display_model.h`, and
+`test_display_model` asserts the alarm bar never covers the badge or the
+battery. `show_touch_labels` is false whenever the alarm bar is shown. The bar
+always says what it means: `TAP TO SNOOZE` or `SNOOZED n min`, never a bare
+number.
